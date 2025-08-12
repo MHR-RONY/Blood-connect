@@ -25,47 +25,61 @@ import InventoryPage from "./pages/admin/InventoryPage";
 import EmergencyPage from "./pages/admin/EmergencyPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import DonationsPage from "./pages/admin/DonationsPage";
+import HelpCenter from "./pages/HelpCenter";
+import ContactUs from "./pages/ContactUs";
+import Emergency from "./pages/Emergency";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import MedicalDisclaimer from "./pages/MedicalDisclaimer";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="system" storageKey="blood-connect-theme">
-      <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/donate" element={<BloodDonatePage />} />
-          <Route path="/donation" element={<MoneyDonationPage />} />
-          <Route path="/request" element={<RequestBloodPage />} />
-          <Route path="/find-donors" element={<FindDonorsPage />} />
-          <Route path="/emergency" element={<EmergencyRequestPage />} />
-          <Route path="/profile" element={<Profile />} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="users" element={<UsersPage />} />
-            <Route path="donors" element={<DonorsPage />} />
-            <Route path="requests" element={<RequestsPage />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="emergency" element={<EmergencyPage />} />
-            <Route path="donations" element={<DonationsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
-          
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </ThemeProvider>
-  </QueryClientProvider>
+	<QueryClientProvider client={queryClient}>
+		<ThemeProvider defaultTheme="system" storageKey="blood-connect-theme">
+			<TooltipProvider>
+				<Toaster />
+				<Sonner />
+				<BrowserRouter>
+					<Routes>
+						<Route path="/" element={<LandingPage />} />
+						<Route path="/signup" element={<SignUp />} />
+						<Route path="/login" element={<Login />} />
+						<Route path="/dashboard" element={<Dashboard />} />
+						<Route path="/donate" element={<BloodDonatePage />} />
+						<Route path="/donation" element={<MoneyDonationPage />} />
+						<Route path="/request" element={<RequestBloodPage />} />
+						<Route path="/find-donors" element={<FindDonorsPage />} />
+						<Route path="/emergency" element={<EmergencyRequestPage />} />
+						<Route path="/profile" element={<Profile />} />
+
+						{/* Admin Routes */}
+						<Route path="/admin" element={<AdminLayout />}>
+							<Route index element={<AdminDashboard />} />
+							<Route path="users" element={<UsersPage />} />
+							<Route path="donors" element={<DonorsPage />} />
+							<Route path="requests" element={<RequestsPage />} />
+							<Route path="inventory" element={<InventoryPage />} />
+							<Route path="emergency" element={<EmergencyPage />} />
+							<Route path="donations" element={<DonationsPage />} />
+							<Route path="settings" element={<SettingsPage />} />
+						</Route>
+
+						{/* Static Pages */}
+						<Route path="/help-center" element={<HelpCenter />} />
+						<Route path="/contact-us" element={<ContactUs />} />
+						<Route path="/emergency-info" element={<Emergency />} />
+						<Route path="/privacy-policy" element={<PrivacyPolicy />} />
+						<Route path="/terms-of-service" element={<TermsOfService />} />
+						<Route path="/medical-disclaimer" element={<MedicalDisclaimer />} />
+
+						{/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+						<Route path="*" element={<NotFound />} />
+					</Routes>
+				</BrowserRouter>
+			</TooltipProvider>
+		</ThemeProvider>
+	</QueryClientProvider>
 );
 
 export default App;

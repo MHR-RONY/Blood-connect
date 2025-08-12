@@ -1,8 +1,9 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Heart, ClipboardList, AlertTriangle, TrendingUp, Calendar, DollarSign } from 'lucide-react';
+import { Users, ClipboardList, AlertTriangle, TrendingUp, Calendar, DollarSign, Droplets } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import BloodDropIcon from '@/components/BloodDropIcon';
 
 const AdminDashboard = () => {
 	const stats = [
@@ -17,7 +18,7 @@ const AdminDashboard = () => {
 			title: "Active Donors",
 			value: "456",
 			change: "+5%",
-			icon: Heart,
+			icon: Droplets,
 			color: "text-red-600"
 		},
 		{
@@ -117,9 +118,9 @@ const AdminDashboard = () => {
 							{recentActivities.map((activity) => (
 								<div key={activity.id} className="flex items-center space-x-4">
 									<div className={`w-2 h-2 rounded-full ${activity.type === 'emergency' ? 'bg-red-500' :
-											activity.type === 'donation' ? 'bg-green-500' :
-												activity.type === 'request' ? 'bg-blue-500' :
-													'bg-gray-500'
+										activity.type === 'donation' ? 'bg-green-500' :
+											activity.type === 'request' ? 'bg-blue-500' :
+												'bg-gray-500'
 										}`} />
 									<div className="flex-1 space-y-1">
 										<p className="text-sm font-medium">{activity.action}</p>
@@ -144,7 +145,7 @@ const AdminDashboard = () => {
 							Add New User
 						</Button>
 						<Button className="w-full justify-start" variant="outline">
-							<Heart className="mr-2 h-4 w-4" />
+							<Droplets className="mr-2 h-4 w-4" />
 							Register Donor
 						</Button>
 						<Button className="w-full justify-start" variant="outline">

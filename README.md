@@ -6,6 +6,8 @@
 
 **Developer**: [mhrrony](https://www.mhrrony.com)
 
+**Repository**: [https://github.com/MHR-RONY/Blood-connect](https://github.com/MHR-RONY/Blood-connect)
+
 ## Features
 
 - Blood donation registration and management
@@ -23,10 +25,11 @@ The project requires Node.js & npm installed - [install with nvm](https://nodejs
 Follow these steps:
 
 ```sh
-# Step 1: Download or extract the project files
+# Step 1: Clone the repository
+git clone https://github.com/MHR-RONY/Blood-connect.git
 
 # Step 2: Navigate to the project directory
-cd bloodconnect
+cd Blood-connect
 
 # Step 3: Install the necessary dependencies.
 npm i

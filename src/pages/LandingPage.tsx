@@ -2,13 +2,14 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, MapPin, Clock, Shield, Users, Bell } from "lucide-react";
+import { MapPin, Clock, Shield, Users, Bell } from "lucide-react";
 import { Link } from "react-router-dom";
+import BloodDropIcon from "@/components/BloodDropIcon";
 
 const LandingPage = () => {
 	const features = [
 		{
-			icon: <Heart className="h-8 w-8 text-primary" />,
+			icon: <BloodDropIcon size="lg" />,
 			title: "Easy Blood Donation",
 			description: "Simple and secure blood donation process with real-time tracking of your contributions."
 		},
@@ -95,7 +96,7 @@ const LandingPage = () => {
 									Get Started
 								</Link>
 							</Button>
-							<Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 border-white text-white hover:bg-white hover:text-primary">
+							<Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 border-white text-red-500 hover:bg-white hover:text-black">
 								<Link to="/login">
 									Sign In
 								</Link>
@@ -126,25 +127,25 @@ const LandingPage = () => {
 						<div>
 							<h4 className="font-semibold mb-3">Support</h4>
 							<div className="space-y-2 text-sm">
-								<a href="#" className="block opacity-80 hover:opacity-100">Help Center</a>
-								<a href="#" className="block opacity-80 hover:opacity-100">Contact Us</a>
-								<a href="#" className="block opacity-80 hover:opacity-100">Emergency</a>
+								<Link to="/help-center" className="block opacity-80 hover:opacity-100">Help Center</Link>
+								<Link to="/contact-us" className="block opacity-80 hover:opacity-100">Contact Us</Link>
+								<Link to="/emergency-info" className="block opacity-80 hover:opacity-100">Emergency</Link>
 							</div>
 						</div>
 						<div>
 							<h4 className="font-semibold mb-3">Legal</h4>
 							<div className="space-y-2 text-sm">
-								<a href="#" className="block opacity-80 hover:opacity-100">Privacy Policy</a>
-								<a href="#" className="block opacity-80 hover:opacity-100">Terms of Service</a>
-								<a href="#" className="block opacity-80 hover:opacity-100">Medical Disclaimer</a>
+								<Link to="/privacy-policy" className="block opacity-80 hover:opacity-100">Privacy Policy</Link>
+								<Link to="/terms-of-service" className="block opacity-80 hover:opacity-100">Terms of Service</Link>
+								<Link to="/medical-disclaimer" className="block opacity-80 hover:opacity-100">Medical Disclaimer</Link>
 							</div>
 						</div>
 					</div>
 					<div className="border-t border-white/20 mt-8 pt-8 text-center text-sm opacity-80">
 						<div className="flex flex-col items-center space-y-2">
-							<div>© 2024 BloodConnect. All rights reserved.</div>
+							<div>© 2025 MhrRony. All rights reserved.</div>
 							<div>
-								Developed with ❤️ by{" "}
+								Developed by{" "}
 								<a
 									href="https://www.mhrrony.com"
 									target="_blank"
