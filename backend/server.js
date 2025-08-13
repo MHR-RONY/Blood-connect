@@ -14,6 +14,8 @@ const donationRoutes = require('./routes/donations');
 const requestRoutes = require('./routes/requests');
 const emergencyRoutes = require('./routes/emergency');
 const adminRoutes = require('./routes/admin');
+const hospitalDonationRoutes = require('./routes/hospitalDonations');
+const availableDonorRoutes = require('./routes/availableDonors');
 
 const app = express();
 
@@ -60,6 +62,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/bloodconn
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/donations', donationRoutes);
+app.use('/api/donations', hospitalDonationRoutes);
+app.use('/api/donors', availableDonorRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/emergency', emergencyRoutes);
 app.use('/api/admin', adminRoutes);

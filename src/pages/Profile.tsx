@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/useAuth";
+import { hospitalDonationAPI, availableDonorAPI } from "@/services/donationAPI";
+import { Loader2 } from "lucide-react";
 import {
 	User,
 	Edit,
@@ -25,53 +28,120 @@ import {
 	Clock,
 	CheckCircle,
 	AlertCircle,
-	TrendingUp
+	TrendingUp,
+	Users
 } from "lucide-react";
 
 const Profile = () => {
+	const { user, isLoading } = useAuth();
 	const [isEditing, setIsEditing] = useState(false);
+	const [donationHistory, setDonationHistory] = useState([]);
+	const [loadingDonations, setLoadingDonations] = useState(false);
 	const [profileData, setProfileData] = useState({
-		name: "Alex Johnson",
-		email: "alex.johnson@email.com",
-		phone: "+1 (555) 123-4567",
-		bloodType: "O+",
-		location: "New York, NY",
-		birthDate: "1990-05-15",
-		emergencyContact: "Jane Johnson - +1 (555) 987-6543",
-		medicalNotes: "No known allergies",
-		bio: "Passionate about helping others through blood donation. Regular donor since 2020."
+		name: "",
+		email: "",
+		phone: "",
+		bloodType: "",
+		location: "",
+		birthDate: "",
+		emergencyContact: "",
+		medicalNotes: "",
+		bio: "",
+		weight: 0,
+		gender: "",
+		isAvailableDonor: true,
+		memberSince: ""
 	});
 
-	// Mock data
-	const donationHistory = [
-		{
-			id: 1,
-			date: "2024-01-15",
-			type: "Whole Blood",
-			location: "City Hospital",
-			status: "Completed",
-			units: 1,
-			points: 100
-		},
-		{
-			id: 2,
-			date: "2023-11-10",
-			type: "Platelets",
-			location: "Community Center",
-			status: "Completed",
-			units: 1,
-			points: 150
-		},
-		{
-			id: 3,
-			date: "2023-09-05",
-			type: "Whole Blood",
-			location: "Blood Drive Mobile",
-			status: "Completed",
-			units: 1,
-			points: 100
+	// Update profile data when user data is available
+	useEffect(() => {
+		if (user) {
+			setProfileData({
+				name: `${user.firstName} ${user.lastName}`,
+				email: user.email,
+				phone: user.phone,
+				bloodType: user.bloodType,
+				location: `${user.location.area}, ${user.location.city}`,
+				birthDate: user.dateOfBirth,
+				emergencyContact: "",
+				medicalNotes: "",
+				bio: "",
+				weight: user.weight,
+				gender: user.gender,
+				isAvailableDonor: user.isAvailableDonor,
+				memberSince: user.createdAt
+			});
 		}
-	];
+	}, [user]);
+
+	// Fetch donation history from API
+	useEffect(() => {
+		const fetchDonationHistory = async () => {
+			if (!user) return;
+			
+			setLoadingDonations(true);
+			try {
+				// Fetch both hospital donations and available donor registrations
+				const [hospitalResponse, donorResponse] = await Promise.all([
+					hospitalDonationAPI.getUserHistory().catch(() => ({ success: false, data: [] })),
+					availableDonorAPI.getProfile().catch(() => ({ success: false, data: null }))
+				]);
+
+				const allDonations = [];
+
+				// Transform hospital donations
+				if (hospitalResponse.success) {
+					const hospitalDonations = hospitalResponse.data.map((donation) => {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const d = donation as any;
+						return {
+							id: `hospital-${d._id}`,
+							date: new Date(d.createdAt || d.submittedAt || Date.now()).toLocaleDateString(),
+							type: "Hospital Donation",
+							location: d.appointmentDetails?.donationCenter || d.donationCenter || "Hospital",
+							status: d.status ? d.status.charAt(0).toUpperCase() + d.status.slice(1) : "Pending",
+							units: Math.round((d.bloodInfo?.quantity || 450) / 450),
+							points: d.status === 'completed' ? 100 : 0,
+							bloodType: d.bloodInfo?.bloodType || d.bloodType || "Unknown",
+							urgencyLevel: d.urgencyLevel || 'medium'
+						};
+					});
+					allDonations.push(...hospitalDonations);
+				}
+
+				// Transform available donor registration
+				if (donorResponse.success && donorResponse.data) {
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const d = donorResponse.data as any;
+					const donorRegistration = {
+						id: `donor-${d._id}`,
+						date: new Date(d.registeredAt || d.createdAt || Date.now()).toLocaleDateString(),
+						type: "Available Donor Registration",
+						location: "Emergency Contact Registry",
+						status: d.isActive ? "Active" : "Inactive",
+						units: 0, // Registration doesn't donate units yet
+						points: d.isActive ? 50 : 0, // Points for being available
+						bloodType: d.bloodInfo?.bloodType || d.bloodType || user.bloodType || "Unknown",
+						urgencyLevel: 'emergency'
+					};
+					allDonations.push(donorRegistration);
+				}
+
+				// Sort by date (newest first)
+				allDonations.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+				
+				setDonationHistory(allDonations);
+			} catch (error) {
+				console.error('Error fetching donation history:', error);
+				// Set empty array on error
+				setDonationHistory([]);
+			} finally {
+				setLoadingDonations(false);
+			}
+		};
+
+		fetchDonationHistory();
+	}, [user]);
 
 	const bloodRequests = [
 		{
@@ -130,20 +200,20 @@ const Profile = () => {
 		level: "Gold Donor"
 	};
 
-	const getStatusColor = (status: string) => {
+	const getStatusColor = (status: string): "default" | "secondary" | "destructive" | "outline" => {
 		switch (status) {
-			case "Completed": return "success";
-			case "Fulfilled": return "success";
+			case "Completed": return "default";
+			case "Fulfilled": return "default";
 			case "Pending": return "secondary";
 			case "Critical": return "destructive";
 			default: return "secondary";
 		}
 	};
 
-	const getUrgencyColor = (urgency: string) => {
+	const getUrgencyColor = (urgency: string): "default" | "secondary" | "destructive" | "outline" => {
 		switch (urgency) {
 			case "Critical": return "destructive";
-			case "High": return "emergency";
+			case "High": return "destructive";
 			case "Medium": return "secondary";
 			default: return "secondary";
 		}
@@ -152,8 +222,27 @@ const Profile = () => {
 	return (
 		<div className="min-h-screen bg-medical/20">
 			<Header />
-			<div className="container mx-auto px-4 py-8">
-				<div className="max-w-6xl mx-auto">
+			{isLoading ? (
+				<div className="container mx-auto px-4 py-8">
+					<div className="max-w-6xl mx-auto flex items-center justify-center min-h-[400px]">
+						<div className="text-center">
+							<Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+							<p className="text-lg text-muted-foreground">Loading profile...</p>
+						</div>
+					</div>
+				</div>
+			) : !user ? (
+				<div className="container mx-auto px-4 py-8">
+					<div className="max-w-6xl mx-auto flex items-center justify-center min-h-[400px]">
+						<div className="text-center">
+							<AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+							<p className="text-lg text-muted-foreground">Unable to load profile data.</p>
+						</div>
+					</div>
+				</div>
+			) : (
+				<div className="container mx-auto px-4 py-8">
+					<div className="max-w-6xl mx-auto">
 					{/* Profile Header */}
 					<Card className="mb-8">
 						<CardContent className="pt-6">
@@ -312,12 +401,18 @@ const Profile = () => {
 												</div>
 												<div className="flex items-center gap-3">
 													<Calendar className="h-4 w-4 text-muted-foreground" />
-													<span>Born {profileData.birthDate}</span>
+													<span>Born {new Date(profileData.birthDate).toLocaleDateString()}</span>
+												</div>
+												<div className="flex items-center gap-3">
+													<User className="h-4 w-4 text-muted-foreground" />
+													<span>Member since {new Date(profileData.memberSince).toLocaleDateString()}</span>
 												</div>
 												<Separator />
 												<div>
 													<h4 className="font-medium mb-2">Bio</h4>
-													<p className="text-muted-foreground text-sm">{profileData.bio}</p>
+													<p className="text-muted-foreground text-sm">
+														{profileData.bio || "No bio provided yet."}
+													</p>
 												</div>
 											</div>
 										)}
@@ -339,12 +434,30 @@ const Profile = () => {
 											</Badge>
 										</div>
 										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium">Weight</span>
+											<span className="text-sm text-muted-foreground">{profileData.weight} kg</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium">Gender</span>
+											<span className="text-sm text-muted-foreground">{profileData.gender}</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium">Available for Donation</span>
+											<Badge variant={profileData.isAvailableDonor ? "default" : "secondary"}>
+												{profileData.isAvailableDonor ? "Available" : "Not Available"}
+											</Badge>
+										</div>
+										<div className="flex items-center justify-between">
 											<span className="text-sm font-medium">Emergency Contact</span>
-											<span className="text-sm text-muted-foreground">{profileData.emergencyContact}</span>
+											<span className="text-sm text-muted-foreground">
+												{profileData.emergencyContact || "Not provided"}
+											</span>
 										</div>
 										<div>
 											<span className="text-sm font-medium">Medical Notes</span>
-											<p className="text-sm text-muted-foreground mt-1">{profileData.medicalNotes}</p>
+											<p className="text-sm text-muted-foreground mt-1">
+												{profileData.medicalNotes || "No medical notes provided"}
+											</p>
 										</div>
 										<Separator />
 										<div className="space-y-2">
@@ -370,34 +483,58 @@ const Profile = () => {
 										Blood Donation History
 									</CardTitle>
 									<CardDescription>
-										Your complete blood donation record
+										Your complete blood donation record including hospital appointments and emergency donor registrations
 									</CardDescription>
 								</CardHeader>
 								<CardContent>
 									<div className="space-y-4">
-										{donationHistory.map((donation) => (
-											<div key={donation.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-												<div className="flex items-center space-x-4">
-													<div className="bg-primary/10 p-2 rounded-full">
-														<Droplets className="h-4 w-4 text-primary" />
+										{loadingDonations ? (
+											<div className="flex items-center justify-center py-8">
+												<Loader2 className="h-6 w-6 animate-spin" />
+												<span className="ml-2">Loading donation history...</span>
+											</div>
+										) : donationHistory.length === 0 ? (
+											<div className="text-center py-8 text-muted-foreground">
+												<Droplets className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+												<p>No donation history found.</p>
+												<p className="text-sm">Submit a donation request to see your history here.</p>
+											</div>
+										) : (
+											donationHistory.map((donation) => (
+												<div key={donation.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+													<div className="flex items-center space-x-4">
+														<div className={`p-2 rounded-full ${
+															donation.type === 'Available Donor Registration' 
+																? 'bg-green-100 dark:bg-green-900' 
+																: 'bg-primary/10'
+														}`}>
+															{donation.type === 'Available Donor Registration' ? (
+																<Users className="h-4 w-4 text-green-600 dark:text-green-400" />
+															) : (
+																<Droplets className="h-4 w-4 text-primary" />
+															)}
+														</div>
+														<div>
+															<div className="font-medium">{donation.date}</div>
+															<div className="text-sm text-muted-foreground">
+																{donation.type} • {donation.location}
+															</div>
+														</div>
 													</div>
-													<div>
-														<div className="font-medium">{donation.date}</div>
+													<div className="text-right space-y-1">
+														<Badge variant={getStatusColor(donation.status)}>
+															{donation.status}
+														</Badge>
 														<div className="text-sm text-muted-foreground">
-															{donation.type} • {donation.location}
+															{donation.type === 'Available Donor Registration' 
+																? `Emergency donor • +${donation.points} points`
+																: `${donation.units} unit(s) • +${donation.points} points`
+															}
 														</div>
 													</div>
 												</div>
-												<div className="text-right space-y-1">
-													<Badge variant={getStatusColor(donation.status) as any}>
-														{donation.status}
-													</Badge>
-													<div className="text-sm text-muted-foreground">
-														{donation.units} unit(s) • +{donation.points} points
-													</div>
-												</div>
-											</div>
-										))}
+											))
+										)}
 									</div>
 								</CardContent>
 							</Card>
@@ -434,11 +571,11 @@ const Profile = () => {
 														<Badge variant="outline">
 															{request.bloodType}
 														</Badge>
-														<Badge variant={getUrgencyColor(request.urgency) as any}>
+														<Badge variant={getUrgencyColor(request.urgency)}>
 															{request.urgency}
 														</Badge>
 													</div>
-													<Badge variant={getStatusColor(request.status) as any}>
+													<Badge variant={getStatusColor(request.status)}>
 														{request.status}
 													</Badge>
 												</div>
@@ -479,7 +616,7 @@ const Profile = () => {
 													<div className="font-semibold text-success">
 														৳{donation.amount.toLocaleString()}
 													</div>
-													<Badge variant={getStatusColor(donation.status) as any}>
+													<Badge variant={getStatusColor(donation.status)}>
 														{donation.status}
 													</Badge>
 												</div>
@@ -499,6 +636,7 @@ const Profile = () => {
 					</Tabs>
 				</div>
 			</div>
+			)}
 		</div>
 	);
 };

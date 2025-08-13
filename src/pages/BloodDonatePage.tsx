@@ -1,6 +1,5 @@
 import { useState } from "react";
 import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,72 +9,181 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import BloodTypeSelector from "@/components/BloodTypeSelector";
+import LocationSelector from "@/components/LocationSelector";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { hospitalDonationAPI, availableDonorAPI } from "@/services/donationAPI";
 import {
-
-	CreditCard,
-	Smartphone,
-	Building,
-	Gift,
-	Star,
-	Users,
-	Target,
+	Droplets,
+	Heart,
+	MapPin,
+	Clock,
+	User,
+	Phone,
+	Mail,
+	Calendar,
+	AlertTriangle,
+	Shield,
 	Award,
-	Shield
+	Users,
+	Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import BloodDropIcon from "@/components/BloodDropIcon";
-import AnimatedCounter from "@/components/AnimatedCounter";
 
 const BloodDonatePage = () => {
+	const { user } = useAuth();
+	const { toast } = useToast();
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [donationData, setDonationData] = useState({
-		amount: "",
-		customAmount: "",
-		purpose: "",
-		frequency: "one-time",
-		donorName: "",
-		donorEmail: "",
-		donorPhone: "",
-		paymentMethod: "",
-		isAnonymous: false,
-		message: "",
-		agreeToTerms: false
+		bloodType: "",
+		quantity: "450", // Standard unit
+		donationType: "", // "hospital" or "people"
+		urgency: "medium", // Urgency level for hospital donations
+		emergencyContact: "",
+		emergencyPhone: "",
+		lastDonation: "",
+		medications: "",
+		medicalConditions: "",
+		donationCenter: "",
+		preferredDate: "",
+		preferredTime: "",
+		availability: "", // For "people" option
+		contactPreference: "", // For "people" option
+		notes: "",
+		termsAccepted: false,
+		eligibilityConfirmed: false
 	});
 
-	const presetAmounts = [
-		{ amount: 500, label: "৳500", description: "Help 1 patient" },
-		{ amount: 1000, label: "৳1,000", description: "Support blood drive" },
-		{ amount: 2500, label: "৳2,500", description: "Fund equipment" },
-		{ amount: 5000, label: "৳5,000", description: "Emergency fund" },
-		{ amount: 10000, label: "৳10,000", description: "Major impact" },
-		{ amount: 0, label: "Custom", description: "Enter your amount" }
+	const bloodQuantities = [
+		{ value: "450", label: "450ml (Standard)", description: "Full donation" },
+		{ value: "350", label: "350ml", description: "Reduced donation" },
+		{ value: "250", label: "250ml", description: "Minimum donation" }
 	];
 
-	const donationPurposes = [
-		{ value: "emergency", label: "Emergency Blood Drive", icon: "🚨" },
-		{ value: "equipment", label: "Medical Equipment", icon: "🏥" },
-		{ value: "awareness", label: "Awareness Campaign", icon: "📢" },
-		{ value: "research", label: "Blood Research", icon: "🔬" },
-		{ value: "general", label: "General Fund", icon: "❤️" },
-		{ value: "infrastructure", label: "Infrastructure", icon: "🏢" }
+	const donationCenters = [
+		{ value: "dhaka-medical", label: "Dhaka Medical College Hospital", address: "Dhaka" },
+		{ value: "square-hospital", label: "Square Hospital", address: "Panthapath, Dhaka" },
+		{ value: "apollo-hospital", label: "Apollo Hospitals", address: "Bashundhara, Dhaka" },
+		{ value: "red-crescent", label: "Bangladesh Red Crescent", address: "Multiple Locations" }
 	];
 
-	const paymentMethods = [
-		{ value: "bkash", label: "bKash", icon: "📱", color: "bg-pink-100 text-pink-700" },
-		{ value: "nagad", label: "Nagad", icon: "📱", color: "bg-orange-100 text-orange-700" },
-		{ value: "rocket", label: "Rocket", icon: "🚀", color: "bg-purple-100 text-purple-700" },
-		{ value: "card", label: "Credit/Debit Card", icon: "💳", color: "bg-blue-100 text-blue-700" },
-		{ value: "bank", label: "Bank Transfer", icon: "🏦", color: "bg-green-100 text-green-700" }
+	const timeSlots = [
+		"9:00 AM - 10:00 AM",
+		"10:00 AM - 11:00 AM",
+		"11:00 AM - 12:00 PM",
+		"2:00 PM - 3:00 PM",
+		"3:00 PM - 4:00 PM",
+		"4:00 PM - 5:00 PM"
 	];
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		console.log("Donation submitted:", donationData);
-		// Here you would integrate with payment gateway
+		
+		if (!user) {
+			toast({
+				title: "Authentication Required",
+				description: "Please login to submit a donation request.",
+				variant: "destructive",
+			});
+			return;
+		}
+
+		setIsSubmitting(true);
+		
+		try {
+			if (donationData.donationType === "hospital") {
+				// Submit hospital donation request
+				const hospitalRequest = {
+					bloodType: donationData.bloodType,
+					unitsNeeded: parseInt(donationData.quantity) / 450, // Convert ml to units
+					urgencyLevel: donationData.urgency as 'low' | 'medium' | 'high' | 'critical',
+					donationDate: donationData.preferredDate,
+					hospital: donationData.donationCenter,
+					contactPhone: donationData.emergencyPhone || user.phone,
+					medicalConditions: donationData.medicalConditions,
+					notes: donationData.notes,
+				};
+
+				await hospitalDonationAPI.submit(hospitalRequest);
+				
+				toast({
+					title: "Donation Request Submitted! 🩸",
+					description: "Your hospital donation appointment has been submitted. You'll receive confirmation once approved by our admin team.",
+				});
+				
+			} else if (donationData.donationType === "people") {
+				// Register as available donor
+				const donorRequest = {
+					isAvailable: true,
+					availableUntil: donationData.availability,
+					preferredTimeSlots: donationData.preferredTime ? [donationData.preferredTime] : undefined,
+					maxDistanceKm: 50, // Default distance
+					emergencyContact: donationData.emergencyContact === "yes",
+					notes: donationData.notes,
+				};
+
+				await availableDonorAPI.register(donorRequest);
+				
+				toast({
+					title: "Registered as Available Donor! 👥",
+					description: "You have been registered as an available donor. People in need can now contact you directly.",
+				});
+			}
+			
+			// Reset form
+			setDonationData({
+				bloodType: "",
+				quantity: "450",
+				donationType: "",
+				urgency: "medium",
+				emergencyContact: "",
+				emergencyPhone: "",
+				lastDonation: "",
+				medications: "",
+				medicalConditions: "",
+				donationCenter: "",
+				preferredDate: "",
+				preferredTime: "",
+				availability: "",
+				contactPreference: "",
+				notes: "",
+				termsAccepted: false,
+				eligibilityConfirmed: false
+			});
+			
+		} catch (error) {
+			console.error('Submission error:', error);
+			toast({
+				title: "Submission Failed",
+				description: "There was an error submitting your request. Please try again later.",
+				variant: "destructive",
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
-	const selectedAmount = donationData.amount === "custom"
-		? parseInt(donationData.customAmount) || 0
-		: parseInt(donationData.amount) || 0;
+	const isFormValid = () => {
+		const baseValidation = donationData.bloodType &&
+			donationData.donationType &&
+			donationData.termsAccepted &&
+			donationData.eligibilityConfirmed;
+
+		if (!baseValidation) return false;
+
+		// Additional validation based on donation type
+		if (donationData.donationType === "hospital") {
+			return donationData.donationCenter &&
+				donationData.preferredDate &&
+				donationData.preferredTime;
+		} else if (donationData.donationType === "people") {
+			return donationData.availability &&
+				donationData.contactPreference;
+		}
+
+		return false;
+	};
 
 	return (
 		<div className="min-h-screen bg-medical/20">
@@ -86,13 +194,12 @@ const BloodDonatePage = () => {
 					<div className="text-center mb-8">
 						<div className="flex justify-center mb-4">
 							<div className="bg-primary/10 p-4 rounded-full">
-								<BloodDropIcon className="h-12 w-12" />
+								<Droplets className="h-12 w-12 text-primary" />
 							</div>
 						</div>
-						<h1 className="text-4xl font-bold text-foreground mb-2">Support Blood Donation</h1>
+						<h1 className="text-4xl font-bold text-foreground mb-2">Donate Blood</h1>
 						<p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-							Your contribution helps save lives by supporting our blood donation initiatives,
-							emergency drives, and medical equipment procurement.
+							Join our life-saving mission. Choose to schedule a hospital appointment or make yourself available for emergency donations. Your blood donation can save up to 3 lives.
 						</p>
 					</div>
 
@@ -103,40 +210,35 @@ const BloodDonatePage = () => {
 								<div className="flex justify-center mb-2">
 									<Users className="h-8 w-8 text-primary" />
 								</div>
-								<AnimatedCounter
-									end={2500}
-									suffix="+"
-									className="text-2xl font-bold text-primary"
-									duration={2500}
-								/>
+								<div className="text-2xl font-bold text-primary">15,000+</div>
+								<div className="text-sm text-muted-foreground">Active Donors</div>
+							</CardContent>
+						</Card>
+						<Card className="text-center border-border/50">
+							<CardContent className="pt-6">
+								<div className="flex justify-center mb-2">
+									<Heart className="h-8 w-8 text-success" />
+								</div>
+								<div className="text-2xl font-bold text-success">45,000+</div>
 								<div className="text-sm text-muted-foreground">Lives Saved</div>
 							</CardContent>
 						</Card>
 						<Card className="text-center border-border/50">
 							<CardContent className="pt-6">
 								<div className="flex justify-center mb-2">
-									<Target className="h-8 w-8 text-success" />
+									<Droplets className="h-8 w-8 text-emergency" />
 								</div>
-								<div className="text-2xl font-bold text-success">৳2.5M</div>
-								<div className="text-sm text-muted-foreground">Funds Raised</div>
+								<div className="text-2xl font-bold text-emergency">500+</div>
+								<div className="text-sm text-muted-foreground">Units This Month</div>
 							</CardContent>
 						</Card>
 						<Card className="text-center border-border/50">
 							<CardContent className="pt-6">
 								<div className="flex justify-center mb-2">
-									<Award className="h-8 w-8 text-emergency" />
+									<Award className="h-8 w-8 text-primary" />
 								</div>
-								<div className="text-2xl font-bold text-emergency">50+</div>
-								<div className="text-sm text-muted-foreground">Blood Drives</div>
-							</CardContent>
-						</Card>
-						<Card className="text-center border-border/50">
-							<CardContent className="pt-6">
-								<div className="flex justify-center mb-2">
-									<Shield className="h-8 w-8 text-primary" />
-								</div>
-								<div className="text-2xl font-bold text-primary">1,200+</div>
-								<div className="text-sm text-muted-foreground">Donors Helped</div>
+								<div className="text-2xl font-bold text-primary">25+</div>
+								<div className="text-sm text-muted-foreground">Donation Centers</div>
 							</CardContent>
 						</Card>
 					</div>
@@ -145,400 +247,477 @@ const BloodDonatePage = () => {
 						{/* Donation Form */}
 						<div className="lg:col-span-2">
 							<form onSubmit={handleSubmit} className="space-y-6">
-								{/* Donation Amount */}
+								{/* Blood Type & Quantity */}
 								<Card className="shadow-lg border-border/50">
 									<CardHeader>
 										<CardTitle className="flex items-center">
-											<Gift className="h-5 w-5 mr-2 text-primary" />
-											Select Donation Amount
+											<Droplets className="h-5 w-5 mr-2 text-primary" />
+											Blood Information
 										</CardTitle>
 										<CardDescription>
-											Choose an amount or enter a custom donation amount in BDT
+											Select your blood type and donation quantity
 										</CardDescription>
 									</CardHeader>
 									<CardContent className="space-y-6">
-										<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-											{presetAmounts.map((preset) => (
-												<div key={preset.amount} className="relative">
-													<input
-														type="radio"
-														id={`amount-${preset.amount}`}
-														name="amount"
-														value={preset.amount === 0 ? "custom" : preset.amount}
-														checked={donationData.amount === (preset.amount === 0 ? "custom" : preset.amount.toString())}
-														onChange={(e) => setDonationData(prev => ({ ...prev, amount: e.target.value }))}
-														className="sr-only"
-													/>
-													<label
-														htmlFor={`amount-${preset.amount}`}
-														className={cn(
-															"block p-4 rounded-lg border-2 cursor-pointer transition-all",
-															"hover:border-primary/50 hover:bg-primary/5",
-															donationData.amount === (preset.amount === 0 ? "custom" : preset.amount.toString())
-																? "border-primary bg-primary/10 ring-2 ring-primary/20"
-																: "border-border"
-														)}
-													>
-														<div className="text-center">
-															<div className="text-xl font-bold text-foreground">{preset.label}</div>
-															<div className="text-xs text-muted-foreground mt-1">{preset.description}</div>
+										<div className="space-y-4">
+											<div>
+												<Label className="text-base font-medium mb-3 block">Blood Type</Label>
+												<BloodTypeSelector
+													selectedType={donationData.bloodType}
+													onSelect={(value) => setDonationData(prev => ({ ...prev, bloodType: value }))}
+												/>
+											</div>
+
+											<div>
+												<Label className="text-base font-medium mb-3 block">Donation Quantity</Label>
+												<RadioGroup
+													value={donationData.quantity}
+													onValueChange={(value) => setDonationData(prev => ({ ...prev, quantity: value }))}
+													className="grid grid-cols-1 gap-3"
+												>
+													{bloodQuantities.map((qty) => (
+														<div key={qty.value} className="flex items-center space-x-2 p-3 border rounded-lg">
+															<RadioGroupItem value={qty.value} id={qty.value} />
+															<Label htmlFor={qty.value} className="flex-1">
+																<div className="font-medium">{qty.label}</div>
+																<div className="text-xs text-muted-foreground">{qty.description}</div>
+															</Label>
 														</div>
-													</label>
-												</div>
-											))}
+													))}
+												</RadioGroup>
+											</div>
+										</div>
+									</CardContent>
+								</Card>
+
+								{/* Emergency Contact */}
+								<Card className="shadow-lg border-border/50">
+									<CardHeader>
+										<CardTitle className="flex items-center">
+											<Phone className="h-5 w-5 mr-2 text-primary" />
+											Emergency Contact
+										</CardTitle>
+									</CardHeader>
+									<CardContent className="space-y-4">
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+											<div className="space-y-2">
+												<Label htmlFor="emergencyContact">Emergency Contact Email</Label>
+												<Input
+													id="emergencyContact"
+													type="email"
+													value={donationData.emergencyContact}
+													onChange={(e) => setDonationData(prev => ({ ...prev, emergencyContact: e.target.value }))}
+												/>
+											</div>
+											<div className="space-y-2">
+												<Label htmlFor="emergencyPhone">Emergency Contact Phone</Label>
+												<Input
+													id="emergencyPhone"
+													type="tel"
+													value={donationData.emergencyPhone}
+													onChange={(e) => setDonationData(prev => ({ ...prev, emergencyPhone: e.target.value }))}
+												/>
+											</div>
+										</div>
+									</CardContent>
+								</Card>
+
+								{/* Medical Information */}
+								<Card className="shadow-lg border-border/50">
+									<CardHeader>
+										<CardTitle className="flex items-center">
+											<Shield className="h-5 w-5 mr-2 text-primary" />
+											Medical Information
+										</CardTitle>
+										<CardDescription>
+											Help us ensure safe donation
+										</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-4">
+										<div className="space-y-2">
+											<Label htmlFor="lastDonation">Last Blood Donation Date</Label>
+											<Input
+												id="lastDonation"
+												type="date"
+												value={donationData.lastDonation}
+												onChange={(e) => setDonationData(prev => ({ ...prev, lastDonation: e.target.value }))}
+											/>
 										</div>
 
-										{donationData.amount === "custom" && (
-											<div className="space-y-2">
-												<Label htmlFor="customAmount">Enter Custom Amount (BDT)</Label>
-												<div className="relative">
-													<span className="absolute left-3 top-3 text-muted-foreground">৳</span>
-													<Input
-														id="customAmount"
-														type="number"
-														min="100"
-														className="pl-8"
-														placeholder="Enter amount"
-														value={donationData.customAmount}
-														onChange={(e) => setDonationData(prev => ({ ...prev, customAmount: e.target.value }))}
+										<div className="space-y-2">
+											<Label htmlFor="medications">Current Medications</Label>
+											<Textarea
+												id="medications"
+												placeholder="List any medications you're currently taking..."
+												value={donationData.medications}
+												onChange={(e) => setDonationData(prev => ({ ...prev, medications: e.target.value }))}
+											/>
+										</div>
+
+										<div className="space-y-2">
+											<Label htmlFor="medicalConditions">Medical Conditions</Label>
+											<Textarea
+												id="medicalConditions"
+												placeholder="List any medical conditions or allergies..."
+												value={donationData.medicalConditions}
+												onChange={(e) => setDonationData(prev => ({ ...prev, medicalConditions: e.target.value }))}
+											/>
+										</div>
+									</CardContent>
+								</Card>
+
+								{/* Appointment Details */}
+								<Card className="shadow-lg border-border/50">
+									<CardHeader>
+										<CardTitle className="flex items-center">
+											<Calendar className="h-5 w-5 mr-2 text-primary" />
+											Donation Options
+										</CardTitle>
+										<CardDescription>
+											Choose how you want to donate blood
+										</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-6">
+										{/* Donation Type Selection */}
+										<div className="space-y-4">
+											<Label className="text-base font-medium">Donation Type</Label>
+											<RadioGroup
+												value={donationData.donationType}
+												onValueChange={(value) => setDonationData(prev => ({ ...prev, donationType: value }))}
+												className="grid grid-cols-1 gap-4"
+											>
+												<div className="border rounded-lg p-4 hover:bg-accent/50 transition-colors">
+													<div className="flex items-start space-x-3">
+														<RadioGroupItem value="hospital" id="hospital" className="mt-1" />
+														<Label htmlFor="hospital" className="flex-1 cursor-pointer">
+															<div className="flex items-center gap-2 mb-2">
+																<MapPin className="h-5 w-5 text-primary" />
+																<span className="font-semibold text-lg">Donate via Hospital</span>
+															</div>
+															<p className="text-sm text-muted-foreground mb-2">
+																Schedule an appointment at a donation center or hospital. Perfect for regular donations with professional medical supervision.
+															</p>
+															<div className="flex flex-wrap gap-2">
+																<Badge variant="outline">Scheduled</Badge>
+																<Badge variant="outline">Professional supervision</Badge>
+																<Badge variant="outline">Medical facilities</Badge>
+															</div>
+														</Label>
+													</div>
+												</div>
+
+												<div className="border rounded-lg p-4 hover:bg-accent/50 transition-colors">
+													<div className="flex items-start space-x-3">
+														<RadioGroupItem value="people" id="people" className="mt-1" />
+														<Label htmlFor="people" className="flex-1 cursor-pointer">
+															<div className="flex items-center gap-2 mb-2">
+																<Users className="h-5 w-5 text-emergency" />
+																<span className="font-semibold text-lg">Donate when People Need</span>
+															</div>
+															<p className="text-sm text-muted-foreground mb-2">
+																Make yourself available for emergency donations. People in need will contact you directly when they require your blood type.
+															</p>
+															<div className="flex flex-wrap gap-2">
+																<Badge variant="outline">On-demand</Badge>
+																<Badge variant="outline">Emergency response</Badge>
+																<Badge variant="outline">Direct contact</Badge>
+															</div>
+														</Label>
+													</div>
+												</div>
+											</RadioGroup>
+										</div>
+
+										{/* Conditional Forms based on donation type */}
+										{donationData.donationType === "hospital" && (
+											<div className="space-y-4 border-t pt-4">
+												<h4 className="font-semibold text-lg flex items-center gap-2">
+													<Calendar className="h-5 w-5 text-primary" />
+													Appointment Details
+												</h4>
+												<p className="text-sm text-muted-foreground">
+													Choose your preferred donation time and location
+												</p>
+
+												<div className="space-y-2">
+													<Label htmlFor="donationCenter">Donation Center</Label>
+													<Select value={donationData.donationCenter} onValueChange={(value) => setDonationData(prev => ({ ...prev, donationCenter: value }))}>
+														<SelectTrigger>
+															<SelectValue placeholder="Select donation center" />
+														</SelectTrigger>
+														<SelectContent>
+															{donationCenters.map((center) => (
+																<SelectItem key={center.value} value={center.value}>
+																	<div>
+																		<div className="font-medium">{center.label}</div>
+																		<div className="text-xs text-muted-foreground">{center.address}</div>
+																	</div>
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+												</div>
+
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+													<div className="space-y-2">
+														<Label htmlFor="preferredDate">Preferred Date</Label>
+														<Input
+															id="preferredDate"
+															type="date"
+															min={new Date().toISOString().split('T')[0]}
+															value={donationData.preferredDate}
+															onChange={(e) => setDonationData(prev => ({ ...prev, preferredDate: e.target.value }))}
+														/>
+													</div>
+
+													<div className="space-y-2">
+														<Label htmlFor="preferredTime">Preferred Time</Label>
+														<Select value={donationData.preferredTime} onValueChange={(value) => setDonationData(prev => ({ ...prev, preferredTime: value }))}>
+															<SelectTrigger>
+																<SelectValue placeholder="Select time slot" />
+															</SelectTrigger>
+															<SelectContent>
+																{timeSlots.map((time) => (
+																	<SelectItem key={time} value={time}>{time}</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													</div>
+												</div>
+
+												<div className="space-y-2">
+													<Label htmlFor="notes">Additional Notes</Label>
+													<Textarea
+														id="notes"
+														placeholder="Any special requirements or notes..."
+														value={donationData.notes}
+														onChange={(e) => setDonationData(prev => ({ ...prev, notes: e.target.value }))}
 													/>
 												</div>
-												<p className="text-xs text-muted-foreground">Minimum donation: ৳100</p>
+											</div>
+										)}
+
+										{donationData.donationType === "people" && (
+											<div className="space-y-4 border-t pt-4">
+												<h4 className="font-semibold text-lg flex items-center gap-2">
+													<Users className="h-5 w-5 text-emergency" />
+													Availability Details
+												</h4>
+												<p className="text-sm text-muted-foreground">
+													Set your availability for emergency blood donations
+												</p>
+
+												<div className="space-y-2">
+													<Label htmlFor="availability">When are you available?</Label>
+													<Select value={donationData.availability} onValueChange={(value) => setDonationData(prev => ({ ...prev, availability: value }))}>
+														<SelectTrigger>
+															<SelectValue placeholder="Select your availability" />
+														</SelectTrigger>
+														<SelectContent>
+															<SelectItem value="anytime">Available Anytime</SelectItem>
+															<SelectItem value="weekdays">Weekdays Only</SelectItem>
+															<SelectItem value="weekends">Weekends Only</SelectItem>
+															<SelectItem value="mornings">Morning Hours (6AM-12PM)</SelectItem>
+															<SelectItem value="afternoons">Afternoon Hours (12PM-6PM)</SelectItem>
+															<SelectItem value="evenings">Evening Hours (6PM-10PM)</SelectItem>
+															<SelectItem value="emergencies">Emergency Cases Only</SelectItem>
+														</SelectContent>
+													</Select>
+												</div>
+
+												<div className="space-y-2">
+													<Label htmlFor="contactPreference">Preferred Contact Method</Label>
+													<Select value={donationData.contactPreference} onValueChange={(value) => setDonationData(prev => ({ ...prev, contactPreference: value }))}>
+														<SelectTrigger>
+															<SelectValue placeholder="How should people contact you?" />
+														</SelectTrigger>
+														<SelectContent>
+															<SelectItem value="phone">Phone Call</SelectItem>
+															<SelectItem value="sms">SMS/Text Message</SelectItem>
+															<SelectItem value="both">Phone & SMS</SelectItem>
+															<SelectItem value="emergency-only">Emergency Cases Only</SelectItem>
+														</SelectContent>
+													</Select>
+												</div>
+
+												<div className="space-y-2">
+													<Label htmlFor="notes">Additional Information</Label>
+													<Textarea
+														id="notes"
+														placeholder="Any conditions, preferences, or additional information for people who might contact you..."
+														value={donationData.notes}
+														onChange={(e) => setDonationData(prev => ({ ...prev, notes: e.target.value }))}
+														rows={4}
+													/>
+												</div>
+
+												<div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+													<div className="flex items-start gap-3">
+														<Users className="h-5 w-5 text-blue-600 mt-0.5" />
+														<div>
+															<h5 className="font-medium text-blue-900 mb-1">How it works:</h5>
+															<ul className="text-sm text-blue-800 space-y-1">
+																<li>• Your information will be listed on the Find Donors page</li>
+																<li>• People in need can see your blood type and location</li>
+																<li>• They will contact you directly when they need blood</li>
+																<li>• You can choose to accept or decline each request</li>
+															</ul>
+														</div>
+													</div>
+												</div>
 											</div>
 										)}
 									</CardContent>
 								</Card>
 
-								{/* Donation Purpose */}
+								{/* Terms and Conditions */}
 								<Card className="shadow-lg border-border/50">
-									<CardHeader>
-										<CardTitle>Donation Purpose</CardTitle>
-										<CardDescription>
-											Choose what your donation will support
-										</CardDescription>
-									</CardHeader>
-									<CardContent>
-										<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-											{donationPurposes.map((purpose) => (
-												<div key={purpose.value} className="relative">
-													<input
-														type="radio"
-														id={`purpose-${purpose.value}`}
-														name="purpose"
-														value={purpose.value}
-														checked={donationData.purpose === purpose.value}
-														onChange={(e) => setDonationData(prev => ({ ...prev, purpose: e.target.value }))}
-														className="sr-only"
-													/>
-													<label
-														htmlFor={`purpose-${purpose.value}`}
-														className={cn(
-															"block p-3 rounded-lg border cursor-pointer transition-all",
-															"hover:border-primary/50 hover:bg-primary/5",
-															donationData.purpose === purpose.value
-																? "border-primary bg-primary/10"
-																: "border-border"
-														)}
-													>
-														<div className="flex items-center space-x-3">
-															<span className="text-xl">{purpose.icon}</span>
-															<span className="font-medium">{purpose.label}</span>
-														</div>
-													</label>
-												</div>
-											))}
-										</div>
-									</CardContent>
-								</Card>
-
-								{/* Frequency */}
-								<Card className="shadow-lg border-border/50">
-									<CardHeader>
-										<CardTitle>Donation Frequency</CardTitle>
-									</CardHeader>
-									<CardContent>
-										<RadioGroup
-											value={donationData.frequency}
-											onValueChange={(value) => setDonationData(prev => ({ ...prev, frequency: value }))}
-											className="grid grid-cols-1 md:grid-cols-3 gap-4"
-										>
-											<div className="flex items-center space-x-2 p-3 border rounded-lg">
-												<RadioGroupItem value="one-time" id="one-time" />
-												<Label htmlFor="one-time" className="flex-1">
-													<div className="font-medium">One-time</div>
-													<div className="text-xs text-muted-foreground">Single donation</div>
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2 p-3 border rounded-lg">
-												<RadioGroupItem value="monthly" id="monthly" />
-												<Label htmlFor="monthly" className="flex-1">
-													<div className="font-medium">Monthly</div>
-													<div className="text-xs text-muted-foreground">Recurring monthly</div>
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2 p-3 border rounded-lg">
-												<RadioGroupItem value="yearly" id="yearly" />
-												<Label htmlFor="yearly" className="flex-1">
-													<div className="font-medium">Yearly</div>
-													<div className="text-xs text-muted-foreground">Annual donation</div>
-												</Label>
-											</div>
-										</RadioGroup>
-									</CardContent>
-								</Card>
-
-								{/* Donor Information */}
-								<Card className="shadow-lg border-border/50">
-									<CardHeader>
-										<CardTitle>Donor Information</CardTitle>
-										<CardDescription>
-											Please provide your contact details
-										</CardDescription>
-									</CardHeader>
-									<CardContent className="space-y-6">
-										<div className="flex items-center space-x-2 mb-4">
+									<CardContent className="pt-6 space-y-4">
+										<div className="flex items-start space-x-2">
 											<Checkbox
-												id="anonymous"
-												checked={donationData.isAnonymous}
-												onCheckedChange={(checked) => setDonationData(prev => ({ ...prev, isAnonymous: checked as boolean }))}
+												id="eligibilityConfirmed"
+												checked={donationData.eligibilityConfirmed}
+												onCheckedChange={(checked) => setDonationData(prev => ({ ...prev, eligibilityConfirmed: checked as boolean }))}
 											/>
-											<Label htmlFor="anonymous" className="text-sm">
-												Make this an anonymous donation
+											<Label htmlFor="eligibilityConfirmed" className="text-sm leading-relaxed">
+												I confirm that I am between 18-65 years old, weigh at least 50kg,
+												am in good health, and have not donated blood in the last 3 months.
 											</Label>
 										</div>
 
-										{!donationData.isAnonymous && (
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-												<div className="space-y-2">
-													<Label htmlFor="donorName">Full Name</Label>
-													<Input
-														id="donorName"
-														value={donationData.donorName}
-														onChange={(e) => setDonationData(prev => ({ ...prev, donorName: e.target.value }))}
-														required={!donationData.isAnonymous}
-													/>
-												</div>
-												<div className="space-y-2">
-													<Label htmlFor="donorEmail">Email Address</Label>
-													<Input
-														id="donorEmail"
-														type="email"
-														value={donationData.donorEmail}
-														onChange={(e) => setDonationData(prev => ({ ...prev, donorEmail: e.target.value }))}
-														required={!donationData.isAnonymous}
-													/>
-												</div>
-												<div className="space-y-2 md:col-span-2">
-													<Label htmlFor="donorPhone">Phone Number</Label>
-													<Input
-														id="donorPhone"
-														type="tel"
-														value={donationData.donorPhone}
-														onChange={(e) => setDonationData(prev => ({ ...prev, donorPhone: e.target.value }))}
-													/>
-												</div>
-											</div>
-										)}
-
-										<div className="space-y-2">
-											<Label htmlFor="message">Message (Optional)</Label>
-											<Textarea
-												id="message"
-												placeholder="Leave a message of support..."
-												value={donationData.message}
-												onChange={(e) => setDonationData(prev => ({ ...prev, message: e.target.value }))}
+										<div className="flex items-start space-x-2">
+											<Checkbox
+												id="termsAccepted"
+												checked={donationData.termsAccepted}
+												onCheckedChange={(checked) => setDonationData(prev => ({ ...prev, termsAccepted: checked as boolean }))}
 											/>
+											<Label htmlFor="termsAccepted" className="text-sm leading-relaxed">
+												I agree to the <span className="text-primary underline cursor-pointer">terms and conditions</span> and
+												<span className="text-primary underline cursor-pointer"> privacy policy</span>.
+												I consent to medical screening before donation.
+											</Label>
 										</div>
-									</CardContent>
-								</Card>
 
-								{/* Payment Method */}
-								<Card className="shadow-lg border-border/50">
-									<CardHeader>
-										<CardTitle className="flex items-center">
-											<CreditCard className="h-5 w-5 mr-2 text-primary" />
-											Payment Method
-										</CardTitle>
-										<CardDescription>
-											Choose your preferred payment method
-										</CardDescription>
-									</CardHeader>
-									<CardContent>
-										<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-											{paymentMethods.map((method) => (
-												<div key={method.value} className="relative">
-													<input
-														type="radio"
-														id={`payment-${method.value}`}
-														name="paymentMethod"
-														value={method.value}
-														checked={donationData.paymentMethod === method.value}
-														onChange={(e) => setDonationData(prev => ({ ...prev, paymentMethod: e.target.value }))}
-														className="sr-only"
-													/>
-													<label
-														htmlFor={`payment-${method.value}`}
-														className={cn(
-															"block p-4 rounded-lg border cursor-pointer transition-all",
-															"hover:border-primary/50",
-															donationData.paymentMethod === method.value
-																? "border-primary bg-primary/10"
-																: "border-border"
-														)}
-													>
-														<div className="flex items-center space-x-3">
-															<div className={cn("p-2 rounded-full", method.color)}>
-																<span className="text-lg">{method.icon}</span>
-															</div>
-															<span className="font-medium">{method.label}</span>
-														</div>
-													</label>
-												</div>
-											))}
-										</div>
-									</CardContent>
-								</Card>
-
-								{/* Terms and Submit */}
-								<Card className="shadow-lg border-border/50">
-									<CardContent className="pt-6">
-										<div className="space-y-4">
-											<div className="flex items-start space-x-2">
-												<Checkbox
-													id="terms"
-													checked={donationData.agreeToTerms}
-													onCheckedChange={(checked) => setDonationData(prev => ({ ...prev, agreeToTerms: checked as boolean }))}
-													required
-												/>
-												<Label htmlFor="terms" className="text-sm leading-relaxed">
-													I agree to the donation terms and conditions. I understand that my donation
-													will be used to support blood donation initiatives and related medical activities.
-												</Label>
-											</div>
-
-											<Button
-												type="submit"
-												className="w-full"
-												size="lg"
-												disabled={!donationData.agreeToTerms || selectedAmount < 100}
-											>
-												<BloodDropIcon size="sm" className="mr-2" />
-												Donate ৳{selectedAmount.toLocaleString()} Now
-											</Button>
-										</div>
+										<Button
+											type="submit"
+											size="lg"
+											className="w-full"
+											disabled={!isFormValid() || isSubmitting}
+										>
+											{isSubmitting ? (
+												<>
+													<Loader2 className="h-5 w-5 mr-2 animate-spin" />
+													Submitting...
+												</>
+											) : (
+												<>
+													<Droplets className="h-5 w-5 mr-2" />
+													{donationData.donationType === "hospital" 
+														? "Submit Hospital Donation Request" 
+														: donationData.donationType === "people"
+														? "Register as Available Donor"
+														: "Submit Donation Application"
+													}
+												</>
+											)}
+										</Button>
 									</CardContent>
 								</Card>
 							</form>
 						</div>
 
-						{/* Donation Summary Sidebar */}
-						<div className="lg:col-span-1">
-							<div className="sticky top-24 space-y-6">
-								{/* Donation Summary */}
-								<Card className="shadow-lg border-primary/20 bg-gradient-to-br from-primary/5 to-medical">
-									<CardHeader>
-										<CardTitle className="text-primary">Donation Summary</CardTitle>
-									</CardHeader>
-									<CardContent className="space-y-4">
-										<div className="space-y-3">
-											<div className="flex justify-between">
-												<span>Amount:</span>
-												<span className="font-semibold">
-													৳{selectedAmount.toLocaleString()}
-												</span>
-											</div>
-											{donationData.purpose && (
-												<div className="flex justify-between">
-													<span>Purpose:</span>
-													<span className="font-semibold">
-														{donationPurposes.find(p => p.value === donationData.purpose)?.label}
-													</span>
-												</div>
-											)}
-											<div className="flex justify-between">
-												<span>Frequency:</span>
-												<span className="font-semibold capitalize">{donationData.frequency}</span>
-											</div>
-											{donationData.paymentMethod && (
-												<div className="flex justify-between">
-													<span>Payment:</span>
-													<span className="font-semibold">
-														{paymentMethods.find(p => p.value === donationData.paymentMethod)?.label}
-													</span>
-												</div>
-											)}
+						{/* Sidebar */}
+						<div className="space-y-6">
+							{/* Eligibility Requirements */}
+							<Card className="shadow-lg border-border/50">
+								<CardHeader>
+									<CardTitle className="text-lg">Eligibility Requirements</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-3">
+									<div className="flex items-center space-x-2 text-sm">
+										<div className="w-2 h-2 bg-primary rounded-full"></div>
+										<span>Age: 18-65 years</span>
+									</div>
+									<div className="flex items-center space-x-2 text-sm">
+										<div className="w-2 h-2 bg-primary rounded-full"></div>
+										<span>Weight: Minimum 50kg</span>
+									</div>
+									<div className="flex items-center space-x-2 text-sm">
+										<div className="w-2 h-2 bg-primary rounded-full"></div>
+										<span>Good general health</span>
+									</div>
+									<div className="flex items-center space-x-2 text-sm">
+										<div className="w-2 h-2 bg-primary rounded-full"></div>
+										<span>No blood donation in last 3 months</span>
+									</div>
+									<div className="flex items-center space-x-2 text-sm">
+										<div className="w-2 h-2 bg-primary rounded-full"></div>
+										<span>No recent illness or medication</span>
+									</div>
+								</CardContent>
+							</Card>
+
+							{/* Donation Process */}
+							<Card className="shadow-lg border-border/50">
+								<CardHeader>
+									<CardTitle className="text-lg">Donation Process</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-4">
+									<div className="flex items-start space-x-3">
+										<div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mt-0.5">1</div>
+										<div>
+											<div className="font-medium text-sm">Registration</div>
+											<div className="text-xs text-muted-foreground">Complete forms and health questionnaire</div>
 										</div>
+									</div>
+									<div className="flex items-start space-x-3">
+										<div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mt-0.5">2</div>
+										<div>
+											<div className="font-medium text-sm">Medical Screening</div>
+											<div className="text-xs text-muted-foreground">Quick health check and blood typing</div>
+										</div>
+									</div>
+									<div className="flex items-start space-x-3">
+										<div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mt-0.5">3</div>
+										<div>
+											<div className="font-medium text-sm">Blood Donation</div>
+											<div className="text-xs text-muted-foreground">10-15 minutes donation process</div>
+										</div>
+									</div>
+									<div className="flex items-start space-x-3">
+										<div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mt-0.5">4</div>
+										<div>
+											<div className="font-medium text-sm">Recovery</div>
+											<div className="text-xs text-muted-foreground">Rest and refreshments provided</div>
+										</div>
+									</div>
+								</CardContent>
+							</Card>
 
-										{selectedAmount > 0 && (
-											<div className="border-t border-primary/20 pt-3">
-												<div className="flex justify-between text-lg font-bold text-primary">
-													<span>Total:</span>
-													<span>৳{selectedAmount.toLocaleString()}</span>
-												</div>
-											</div>
-										)}
-									</CardContent>
-								</Card>
-
-								{/* Impact Message */}
-								<Card className="shadow-lg border-border/50">
-									<CardHeader>
-										<CardTitle className="text-success">Your Impact</CardTitle>
-									</CardHeader>
-									<CardContent>
-										{selectedAmount >= 5000 && (
-											<div className="space-y-2">
-												<div className="flex items-center space-x-2">
-													<Star className="h-4 w-4 text-yellow-500" />
-													<span className="text-sm">Fund complete blood drive</span>
-												</div>
-												<div className="flex items-center space-x-2">
-													<BloodDropIcon size="sm" />
-													<span className="text-sm">Help 10+ patients</span>
-												</div>
-											</div>
-										)}
-										{selectedAmount >= 1000 && selectedAmount < 5000 && (
-											<div className="space-y-2">
-												<div className="flex items-center space-x-2">
-													<BloodDropIcon size="sm" />
-													<span className="text-sm">Support medical equipment</span>
-												</div>
-												<div className="flex items-center space-x-2">
-													<Users className="h-4 w-4 text-primary" />
-													<span className="text-sm">Help 3-5 patients</span>
-												</div>
-											</div>
-										)}
-										{selectedAmount >= 100 && selectedAmount < 1000 && (
-											<div className="space-y-2">
-												<div className="flex items-center space-x-2">
-													<BloodDropIcon size="sm" />
-													<span className="text-sm">Support a patient in need</span>
-												</div>
-											</div>
-										)}
-									</CardContent>
-								</Card>
-
-								{/* Recognition Badge */}
-								{selectedAmount >= 10000 && (
-									<Card className="shadow-lg border-primary/20 bg-gradient-to-br from-primary/10 to-emergency/10">
-										<CardContent className="pt-6 text-center">
-											<Award className="h-12 w-12 text-primary mx-auto mb-3" />
-											<h3 className="font-bold text-primary mb-2">Platinum Donor</h3>
-											<p className="text-xs text-muted-foreground">
-												You'll receive special recognition as a major contributor
-											</p>
-										</CardContent>
-									</Card>
-								)}
-							</div>
+							{/* Contact Info */}
+							<Card className="shadow-lg border-border/50">
+								<CardHeader>
+									<CardTitle className="text-lg">Need Help?</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-3">
+									<div className="flex items-center space-x-2 text-sm">
+										<Phone className="h-4 w-4 text-primary" />
+										<span>+880-1234-567890</span>
+									</div>
+									<div className="flex items-center space-x-2 text-sm">
+										<Mail className="h-4 w-4 text-primary" />
+										<span>donate@bloodconnect.bd</span>
+									</div>
+									<div className="flex items-center space-x-2 text-sm">
+										<Clock className="h-4 w-4 text-primary" />
+										<span>24/7 Emergency Support</span>
+									</div>
+								</CardContent>
+							</Card>
 						</div>
 					</div>
 				</div>
 			</div>
-			<Footer />
 		</div>
 	);
 };

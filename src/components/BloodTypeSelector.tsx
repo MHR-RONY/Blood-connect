@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -33,12 +32,16 @@ const BloodTypeSelector = ({
         {bloodTypes.map(({ type }) => (
           <Button
             key={type}
+            type="button"
             variant={selectedType === type ? "default" : "outline"}
             className={cn(
               "h-12 text-base font-semibold transition-all",
               selectedType === type && "ring-2 ring-primary/20"
             )}
-            onClick={() => onSelect(type)}
+            onClick={(e) => {
+              e.preventDefault();
+              onSelect(type);
+            }}
           >
             {type}
           </Button>
