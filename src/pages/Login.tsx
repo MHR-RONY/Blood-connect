@@ -1,25 +1,130 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Lock, AlertCircle } from "lucide-react";
+import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { authApi, ApiError } from "@/services/api";
 import Header from "@/components/Header";
 import BloodDropIcon from "@/components/BloodDropIcon";
 
 const Login = () => {
+	const navigate = useNavigate();
+	const location = useLocation();
+	const { toast } = useToast();
+	const { login } = useAuth();
+
 	const [formData, setFormData] = useState({
 		email: "",
 		password: "",
 		rememberMe: false
 	});
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+	// Get the page user was trying to access (we'll redirect to index instead)
+	const from = '/';
+
+	const handleInputChange = (name: string, value: string | boolean) => {
+		setFormData(prev => ({ ...prev, [name]: value }));
+		// Clear field error when user starts typing
+		if (fieldErrors[name]) {
+			setFieldErrors(prev => ({ ...prev, [name]: '' }));
+		}
+	};
+
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		console.log("Login form submitted:", formData);
-		// Here you would normally authenticate with your backend
+		setIsSubmitting(true);
+		setFieldErrors({});
+
+		try {
+			// Basic validation
+			const errors: Record<string, string> = {};
+
+			if (!formData.email.trim()) {
+				errors.email = 'Email is required';
+			} else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+				errors.email = 'Please enter a valid email address';
+			}
+
+			if (!formData.password.trim()) {
+				errors.password = 'Password is required';
+			}
+
+			if (Object.keys(errors).length > 0) {
+				setFieldErrors(errors);
+				toast({
+					title: "Validation Error",
+					description: "Please fix the errors below and try again.",
+					variant: "destructive",
+				});
+				setIsSubmitting(false);
+				return;
+			}
+
+			// Attempt login
+			const response = await authApi.signIn(
+				formData.email.toLowerCase().trim(),
+				formData.password
+			);
+
+			if (response.success && response.data) {
+				// Login successful
+				login(response.data.token, response.data.user);
+
+				toast({
+					title: "Login Successful! 🎉",
+					description: `Welcome back, ${response.data.user.firstName}!`,
+				});
+
+				// Redirect to index page after successful login
+				setTimeout(() => {
+					navigate('/', { replace: true });
+				}, 1000);
+			}
+
+		} catch (error) {
+			console.error('Login error:', error);
+
+			if (error instanceof ApiError) {
+				if (error.status === 401) {
+					toast({
+						title: "Invalid Credentials",
+						description: "The email or password you entered is incorrect. Please try again.",
+						variant: "destructive",
+					});
+				} else if (error.errors && error.errors.length > 0) {
+					// Show field-specific errors
+					error.errors.forEach(err => {
+						toast({
+							title: "Login Error",
+							description: err,
+							variant: "destructive",
+						});
+					});
+				} else {
+					toast({
+						title: "Login Failed",
+						description: error.message,
+						variant: "destructive",
+					});
+				}
+			} else {
+				toast({
+					title: "Network Error",
+					description: "Failed to connect to server. Please check your internet connection and try again.",
+					variant: "destructive",
+				});
+			}
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	return (

@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
@@ -41,41 +43,116 @@ const App = () => (
 				<Toaster />
 				<Sonner />
 				<BrowserRouter>
-					<Routes>
-						<Route path="/" element={<LandingPage />} />
-						<Route path="/signup" element={<SignUp />} />
-						<Route path="/login" element={<Login />} />
-						<Route path="/dashboard" element={<Dashboard />} />
-						<Route path="/donate" element={<BloodDonatePage />} />
-						<Route path="/donation" element={<MoneyDonationPage />} />
-						<Route path="/request" element={<RequestBloodPage />} />
-						<Route path="/find-donors" element={<FindDonorsPage />} />
-						<Route path="/emergency" element={<EmergencyRequestPage />} />
-						<Route path="/profile" element={<Profile />} />
+					<AuthProvider>
+						<Routes>
+							{/* Public Routes */}
+							<Route path="/" element={<LandingPage />} />
+							<Route
+								path="/signup"
+								element={
+									<ProtectedRoute requireAuth={false}>
+										<SignUp />
+									</ProtectedRoute>
+								}
+							/>
+							<Route
+								path="/login"
+								element={
+									<ProtectedRoute requireAuth={false}>
+										<Login />
+									</ProtectedRoute>
+								}
+							/>
 
-						{/* Admin Routes */}
-						<Route path="/admin" element={<AdminLayout />}>
-							<Route index element={<AdminDashboard />} />
-							<Route path="users" element={<UsersPage />} />
-							<Route path="donors" element={<DonorsPage />} />
-							<Route path="requests" element={<RequestsPage />} />
-							<Route path="inventory" element={<InventoryPage />} />
-							<Route path="emergency" element={<EmergencyPage />} />
-							<Route path="donations" element={<DonationsPage />} />
-							<Route path="settings" element={<SettingsPage />} />
-						</Route>
+							{/* Protected Routes - Require Authentication */}
+							<Route
+								path="/dashboard"
+								element={
+									<ProtectedRoute>
+										<Dashboard />
+									</ProtectedRoute>
+								}
+							/>
+							<Route
+								path="/donate"
+								element={
+									<ProtectedRoute>
+										<BloodDonatePage />
+									</ProtectedRoute>
+								}
+							/>
+							<Route
+								path="/donation"
+								element={
+									<ProtectedRoute>
+										<MoneyDonationPage />
+									</ProtectedRoute>
+								}
+							/>
+							<Route
+								path="/request"
+								element={
+									<ProtectedRoute>
+										<RequestBloodPage />
+									</ProtectedRoute>
+								}
+							/>
+							<Route
+								path="/find-donors"
+								element={
+									<ProtectedRoute>
+										<FindDonorsPage />
+									</ProtectedRoute>
+								}
+							/>
+							<Route
+								path="/emergency"
+								element={
+									<ProtectedRoute>
+										<EmergencyRequestPage />
+									</ProtectedRoute>
+								}
+							/>
+							<Route
+								path="/profile"
+								element={
+									<ProtectedRoute>
+										<Profile />
+									</ProtectedRoute>
+								}
+							/>
 
-						{/* Static Pages */}
-						<Route path="/help-center" element={<HelpCenter />} />
-						<Route path="/contact-us" element={<ContactUs />} />
-						<Route path="/emergency-info" element={<Emergency />} />
-						<Route path="/privacy-policy" element={<PrivacyPolicy />} />
-						<Route path="/terms-of-service" element={<TermsOfService />} />
-						<Route path="/medical-disclaimer" element={<MedicalDisclaimer />} />
+							{/* Protected Admin Routes */}
+							<Route
+								path="/admin"
+								element={
+									<ProtectedRoute>
+										<AdminLayout />
+									</ProtectedRoute>
+								}
+							>
+								<Route index element={<AdminDashboard />} />
+								<Route path="users" element={<UsersPage />} />
+								<Route path="donors" element={<DonorsPage />} />
+								<Route path="requests" element={<RequestsPage />} />
+								<Route path="inventory" element={<InventoryPage />} />
+								<Route path="emergency" element={<EmergencyPage />} />
+								<Route path="donations" element={<DonationsPage />} />
+								<Route path="settings" element={<SettingsPage />} />
+							</Route>
 
-						{/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-						<Route path="*" element={<NotFound />} />
-					</Routes>
+							{/* Static Pages - Public */}
+							<Route path="/help-center" element={<HelpCenter />} />
+							<Route path="/contact-us" element={<ContactUs />} />
+							<Route path="/emergency-info" element={<Emergency />} />
+							<Route path="/privacy-policy" element={<PrivacyPolicy />} />
+							<Route path="/terms-of-service" element={<TermsOfService />} />
+							<Route path="/medical-disclaimer" element={<MedicalDisclaimer />} />
+
+							{/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+							<Route path="*" element={<NotFound />} />
+						</Routes>
+					</AuthProvider>
 				</BrowserRouter>
 			</TooltipProvider>
 		</ThemeProvider>

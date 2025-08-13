@@ -1,19 +1,28 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { User, Mail, Lock, Phone, Calendar, UserCheck } from "lucide-react";
+import { User, Mail, Lock, Phone, Calendar, UserCheck, Loader2, AlertCircle, Check } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import BloodTypeSelector from "@/components/BloodTypeSelector";
 import LocationSelector from "@/components/LocationSelector";
 import Header from "@/components/Header";
 import BloodDropIcon from "@/components/BloodDropIcon";
+import { validateSignUpForm, formatPhoneNumber, sanitizeInput } from "@/utils/validation";
+import { authApi, tokenStorage, ApiError } from "@/services/api";
+import type { SignUpFormData } from "@/utils/validation";
 
 const SignUp = () => {
-	const [formData, setFormData] = useState({
+	const navigate = useNavigate();
+	const { toast } = useToast();
+	const { login } = useAuth();
+
+	const [formData, setFormData] = useState<SignUpFormData>({
 		firstName: "",
 		lastName: "",
 		email: "",
@@ -29,230 +38,518 @@ const SignUp = () => {
 		isAvailableDonor: true
 	});
 
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
-		console.log("Sign up form submitted:", formData);
-		// Here you would normally send the data to your backend
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [emailChecking, setEmailChecking] = useState(false);
+	const [emailExists, setEmailExists] = useState(false);
+	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+	// Real-time email validation
+	useEffect(() => {
+		const checkEmail = async () => {
+			if (!formData.email || formData.email.length < 5) {
+				setEmailExists(false);
+				return;
+			}
+
+			// Basic email format validation
+			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (!emailRegex.test(formData.email)) {
+				return;
+			}
+
+			setEmailChecking(true);
+			try {
+				const response = await authApi.checkEmailExists(formData.email);
+				setEmailExists(response.data?.exists || false);
+			} catch (error) {
+				console.error('Email check failed:', error);
+			} finally {
+				setEmailChecking(false);
+			}
+		};
+
+		const debounceTimer = setTimeout(checkEmail, 500);
+		return () => clearTimeout(debounceTimer);
+	}, [formData.email]);
+
+	const validateField = (name: string, value: string | boolean) => {
+		const errors: Record<string, string> = {};
+
+		switch (name) {
+			case 'firstName':
+				if (!String(value).trim()) errors.firstName = 'First name is required';
+				else if (String(value).length < 2) errors.firstName = 'First name must be at least 2 characters';
+				break;
+			case 'lastName':
+				if (!String(value).trim()) errors.lastName = 'Last name is required';
+				else if (String(value).length < 2) errors.lastName = 'Last name must be at least 2 characters';
+				break;
+			case 'email':
+				if (!String(value).trim()) errors.email = 'Email is required';
+				else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value))) errors.email = 'Invalid email format';
+				else if (emailExists) errors.email = 'Email already registered';
+				break;
+			case 'phone':
+				if (!String(value).trim()) errors.phone = 'Phone number is required';
+				else if (!/^01[3-9]\d{8}$/.test(String(value).replace(/[^\d]/g, ''))) {
+					errors.phone = 'Enter valid Bangladeshi phone number (01XXXXXXXXX)';
+				}
+				break;
+			case 'weight': {
+				const weight = parseFloat(String(value));
+				if (!String(value).trim()) errors.weight = 'Weight is required';
+				else if (isNaN(weight) || weight < 45 || weight > 200) {
+					errors.weight = 'Weight must be between 45kg and 200kg';
+				}
+				break;
+			}
+		}
+
+		setFieldErrors(prev => ({
+			...prev,
+			...errors,
+			...(Object.keys(errors).length === 0 && { [name]: '' })
+		}));
+	};
+
+	const handleInputChange = (name: string, value: string | boolean) => {
+		let processedValue: string | boolean = value;
+
+		// Sanitize text inputs
+		if (typeof value === 'string') {
+			processedValue = sanitizeInput(value);
+		}
+
+		setFormData(prev => ({ ...prev, [name]: processedValue }));
+
+		// Real-time validation for specific fields
+		if (['firstName', 'lastName', 'email', 'phone', 'weight'].includes(name)) {
+			setTimeout(() => validateField(name, processedValue), 300);
+		}
 	};
 
 	const handleLocationChange = (location: { city: string; area: string; coordinates?: { lat: number; lng: number } }) => {
 		setFormData(prev => ({ ...prev, location }));
 	};
 
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setIsSubmitting(true);
+
+		try {
+			// Client-side validation
+			const validation = validateSignUpForm(formData);
+
+			if (!validation.isValid) {
+				toast({
+					title: "Validation Error",
+					description: validation.errors[0],
+					variant: "destructive",
+				});
+				setIsSubmitting(false);
+				return;
+			}
+
+			if (emailExists) {
+				toast({
+					title: "Email Already Registered",
+					description: "This email is already registered. Please use a different email or try logging in.",
+					variant: "destructive",
+				});
+				setIsSubmitting(false);
+				return;
+			}
+
+			// Prepare data for API
+			const apiData = {
+				firstName: formData.firstName.trim(),
+				lastName: formData.lastName.trim(),
+				email: formData.email.toLowerCase().trim(),
+				password: formData.password,
+				phone: formatPhoneNumber(formData.phone),
+				dateOfBirth: formData.dateOfBirth,
+				gender: formData.gender,
+				bloodType: formData.bloodType,
+				weight: parseFloat(formData.weight),
+				location: formData.location,
+				isAvailableDonor: formData.isAvailableDonor,
+			};
+
+			// Submit to API
+			const response = await authApi.signUp(apiData);
+
+			if (response.success && response.data) {
+				// Store token and login user
+				login(response.data.token, response.data.user);
+
+				// Success notification
+				toast({
+					title: "Account Created Successfully! 🎉",
+					description: `Welcome to Blood Connect, ${formData.firstName}! Your account has been created and you're now logged in.`,
+				});
+
+				// Redirect to dashboard
+				setTimeout(() => {
+					navigate('/dashboard');
+				}, 1500);
+			}
+
+		} catch (error) {
+			console.error('Signup error:', error);
+
+			if (error instanceof ApiError) {
+				if (error.errors && error.errors.length > 0) {
+					// Show field-specific errors
+					error.errors.forEach(err => {
+						toast({
+							title: "Validation Error",
+							description: err,
+							variant: "destructive",
+						});
+					});
+				} else {
+					toast({
+						title: "Registration Failed",
+						description: error.message,
+						variant: "destructive",
+					});
+				}
+			} else {
+				toast({
+					title: "Network Error",
+					description: "Failed to connect to server. Please check your internet connection and try again.",
+					variant: "destructive",
+				});
+			}
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	const ErrorIndicator = ({ error }: { error?: string }) => {
+		if (!error) return null;
+		return (
+			<div className="flex items-center gap-1 text-red-500 text-sm mt-1">
+				<AlertCircle className="w-3 h-3" />
+				<span>{error}</span>
+			</div>
+		);
+	};
+
+	const ValidationIcon = ({ isValidating, isValid, hasError }: {
+		isValidating: boolean;
+		isValid: boolean;
+		hasError: boolean;
+	}) => {
+		if (isValidating) return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
+		if (hasError) return <AlertCircle className="w-4 h-4 text-red-500" />;
+		if (isValid) return <Check className="w-4 h-4 text-green-500" />;
+		return null;
+	};
+
 	return (
-		<div className="min-h-screen bg-medical/20">
+		<div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-950/20 dark:to-pink-950/20 flex flex-col">
 			<Header />
-			<div className="container mx-auto px-4 py-8">
-				<div className="max-w-2xl mx-auto">
-					<Card className="shadow-lg border-border/50">
-						<CardHeader className="text-center">
+
+			<div className="flex-1 flex items-center justify-center p-6">
+				<div className="w-full max-w-4xl">
+					<Card className="shadow-2xl border-0 backdrop-blur-sm bg-white/95 dark:bg-gray-950/95">
+						<CardHeader className="text-center pb-8">
 							<div className="flex justify-center mb-4">
-								<div className="bg-primary/10 p-3 rounded-full">
-									<BloodDropIcon size="lg" />
-								</div>
+								<BloodDropIcon className="w-16 h-16 text-red-600" />
 							</div>
-							<CardTitle className="text-2xl font-bold">Join BloodConnect</CardTitle>
-							<CardDescription className="text-base">
-								Create your account and start saving lives today
+							<CardTitle className="text-3xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">
+								Join Blood Connect
+							</CardTitle>
+							<CardDescription className="text-lg text-gray-600 dark:text-gray-300">
+								Create your account to start saving lives
 							</CardDescription>
 						</CardHeader>
+
 						<CardContent>
 							<form onSubmit={handleSubmit} className="space-y-6">
 								{/* Personal Information */}
-								<div className="space-y-4">
-									<h3 className="text-lg font-semibold flex items-center">
-										<User className="h-5 w-5 mr-2 text-primary" />
-										Personal Information
-									</h3>
-
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="firstName">First Name</Label>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<div className="space-y-2">
+										<Label htmlFor="firstName" className="text-sm font-medium flex items-center gap-2">
+											<User className="w-4 h-4" />
+											First Name *
+										</Label>
+										<div className="relative">
 											<Input
 												id="firstName"
+												type="text"
+												placeholder="Enter your first name"
 												value={formData.firstName}
-												onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+												onChange={(e) => handleInputChange('firstName', e.target.value)}
+												className={`${fieldErrors.firstName ? 'border-red-500' : ''}`}
 												required
 											/>
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="lastName">Last Name</Label>
-											<Input
-												id="lastName"
-												value={formData.lastName}
-												onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-												required
-											/>
-										</div>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="email">Email Address</Label>
-										<div className="relative">
-											<Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-											<Input
-												id="email"
-												type="email"
-												className="pl-10"
-												value={formData.email}
-												onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-												required
-											/>
-										</div>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="phone">Phone Number</Label>
-										<div className="relative">
-											<Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-											<Input
-												id="phone"
-												type="tel"
-												className="pl-10"
-												value={formData.phone}
-												onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-												required
-											/>
-										</div>
-									</div>
-
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="dateOfBirth">Date of Birth</Label>
-											<div className="relative">
-												<Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-												<Input
-													id="dateOfBirth"
-													type="date"
-													className="pl-10"
-													value={formData.dateOfBirth}
-													onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-													required
+											<div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+												<ValidationIcon
+													isValidating={false}
+													isValid={!!formData.firstName && !fieldErrors.firstName}
+													hasError={!!fieldErrors.firstName}
 												/>
 											</div>
 										</div>
-										<div className="space-y-2">
-											<Label htmlFor="gender">Gender</Label>
-											<Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
-												<SelectTrigger>
-													<SelectValue placeholder="Select gender" />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="male">Male</SelectItem>
-													<SelectItem value="female">Female</SelectItem>
-													<SelectItem value="other">Other</SelectItem>
-													<SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-												</SelectContent>
-											</Select>
+										<ErrorIndicator error={fieldErrors.firstName} />
+									</div>
+
+									<div className="space-y-2">
+										<Label htmlFor="lastName" className="text-sm font-medium flex items-center gap-2">
+											<User className="w-4 h-4" />
+											Last Name *
+										</Label>
+										<div className="relative">
+											<Input
+												id="lastName"
+												type="text"
+												placeholder="Enter your last name"
+												value={formData.lastName}
+												onChange={(e) => handleInputChange('lastName', e.target.value)}
+												className={`${fieldErrors.lastName ? 'border-red-500' : ''}`}
+												required
+											/>
+											<div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+												<ValidationIcon
+													isValidating={false}
+													isValid={!!formData.lastName && !fieldErrors.lastName}
+													hasError={!!fieldErrors.lastName}
+												/>
+											</div>
 										</div>
+										<ErrorIndicator error={fieldErrors.lastName} />
 									</div>
 								</div>
 
-								{/* Medical Information */}
-								<div className="space-y-4">
-									<h3 className="text-lg font-semibold flex items-center">
-										<UserCheck className="h-5 w-5 mr-2 text-primary" />
-										Medical Information
-									</h3>
-
-									<BloodTypeSelector
-										selectedType={formData.bloodType}
-										onSelect={(type) => setFormData(prev => ({ ...prev, bloodType: type }))}
-										label="Your Blood Type"
-									/>
+								{/* Contact Information */}
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<div className="space-y-2">
+										<Label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
+											<Mail className="w-4 h-4" />
+											Email Address *
+										</Label>
+										<div className="relative">
+											<Input
+												id="email"
+												type="email"
+												placeholder="Enter your email"
+												value={formData.email}
+												onChange={(e) => handleInputChange('email', e.target.value)}
+												className={`${fieldErrors.email || emailExists ? 'border-red-500' : ''}`}
+												required
+											/>
+											<div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+												<ValidationIcon
+													isValidating={emailChecking}
+													isValid={!!formData.email && !fieldErrors.email && !emailExists}
+													hasError={!!fieldErrors.email || emailExists}
+												/>
+											</div>
+										</div>
+										<ErrorIndicator error={fieldErrors.email || (emailExists ? 'Email already registered' : '')} />
+									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="weight">Weight (kg)</Label>
-										<Input
-											id="weight"
-											type="number"
-											min="45"
-											placeholder="Minimum 45 kg required for donation"
-											value={formData.weight}
-											onChange={(e) => setFormData(prev => ({ ...prev, weight: e.target.value }))}
-											required
-										/>
+										<Label htmlFor="phone" className="text-sm font-medium flex items-center gap-2">
+											<Phone className="w-4 h-4" />
+											Phone Number *
+										</Label>
+										<div className="relative">
+											<Input
+												id="phone"
+												type="tel"
+												placeholder="01XXXXXXXXX"
+												value={formData.phone}
+												onChange={(e) => handleInputChange('phone', e.target.value)}
+												className={`${fieldErrors.phone ? 'border-red-500' : ''}`}
+												required
+											/>
+											<div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+												<ValidationIcon
+													isValidating={false}
+													isValid={!!formData.phone && !fieldErrors.phone}
+													hasError={!!fieldErrors.phone}
+												/>
+											</div>
+										</div>
+										<ErrorIndicator error={fieldErrors.phone} />
 									</div>
 								</div>
 
-								{/* Location */}
-								<div className="space-y-4">
-									<h3 className="text-lg font-semibold">Location</h3>
-									<LocationSelector onLocationChange={handleLocationChange} />
-								</div>
-
-								{/* Account Security */}
-								<div className="space-y-4">
-									<h3 className="text-lg font-semibold flex items-center">
-										<Lock className="h-5 w-5 mr-2 text-primary" />
-										Account Security
-									</h3>
-
+								{/* Password Fields */}
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
-										<Label htmlFor="password">Password</Label>
+										<Label htmlFor="password" className="text-sm font-medium flex items-center gap-2">
+											<Lock className="w-4 h-4" />
+											Password *
+										</Label>
 										<Input
 											id="password"
 											type="password"
+											placeholder="Create a strong password"
 											value={formData.password}
-											onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+											onChange={(e) => handleInputChange('password', e.target.value)}
 											required
 										/>
 									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="confirmPassword">Confirm Password</Label>
+										<Label htmlFor="confirmPassword" className="text-sm font-medium flex items-center gap-2">
+											<Lock className="w-4 h-4" />
+											Confirm Password *
+										</Label>
 										<Input
 											id="confirmPassword"
 											type="password"
+											placeholder="Confirm your password"
 											value={formData.confirmPassword}
-											onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+											onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
 											required
 										/>
 									</div>
 								</div>
 
-								{/* Preferences */}
-								<div className="space-y-4">
-									<div className="flex items-center space-x-2">
-										<Checkbox
-											id="availableDonor"
-											checked={formData.isAvailableDonor}
-											onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isAvailableDonor: checked as boolean }))}
-										/>
-										<Label htmlFor="availableDonor" className="text-sm">
-											I am available as a blood donor
+								{/* Personal Details */}
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+									<div className="space-y-2">
+										<Label htmlFor="dateOfBirth" className="text-sm font-medium flex items-center gap-2">
+											<Calendar className="w-4 h-4" />
+											Date of Birth *
 										</Label>
-									</div>
-
-									<div className="flex items-center space-x-2">
-										<Checkbox
-											id="agreedToTerms"
-											checked={formData.agreedToTerms}
-											onCheckedChange={(checked) => setFormData(prev => ({ ...prev, agreedToTerms: checked as boolean }))}
+										<Input
+											id="dateOfBirth"
+											type="date"
+											value={formData.dateOfBirth}
+											onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+											max={new Date(Date.now() - 18 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
 											required
 										/>
-										<Label htmlFor="agreedToTerms" className="text-sm">
-											I agree to the{" "}
-											<Link to="/terms" className="text-primary hover:underline">
-												Terms of Service
-											</Link>{" "}
-											and{" "}
-											<Link to="/privacy" className="text-primary hover:underline">
-												Privacy Policy
-											</Link>
+									</div>
+
+									<div className="space-y-2">
+										<Label htmlFor="gender" className="text-sm font-medium flex items-center gap-2">
+											<UserCheck className="w-4 h-4" />
+											Gender *
 										</Label>
+										<Select
+											value={formData.gender}
+											onValueChange={(value) => handleInputChange('gender', value)}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder="Select gender" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="male">Male</SelectItem>
+												<SelectItem value="female">Female</SelectItem>
+												<SelectItem value="other">Other</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div className="space-y-2">
+										<Label htmlFor="weight" className="text-sm font-medium">
+											Weight (kg) *
+										</Label>
+										<div className="relative">
+											<Input
+												id="weight"
+												type="number"
+												placeholder="Weight in kg"
+												value={formData.weight}
+												onChange={(e) => handleInputChange('weight', e.target.value)}
+												className={`${fieldErrors.weight ? 'border-red-500' : ''}`}
+												min="45"
+												max="200"
+												required
+											/>
+											<div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+												<ValidationIcon
+													isValidating={false}
+													isValid={!!formData.weight && !fieldErrors.weight}
+													hasError={!!fieldErrors.weight}
+												/>
+											</div>
+										</div>
+										<ErrorIndicator error={fieldErrors.weight} />
 									</div>
 								</div>
 
-								<Button type="submit" className="w-full" size="lg">
-									Create Account
+								{/* Blood Type and Location */}
+								<div className="space-y-6">
+									<BloodTypeSelector
+										selectedType={formData.bloodType}
+										onSelect={(bloodType) => handleInputChange('bloodType', bloodType)}
+									/>
+
+									<LocationSelector
+										onLocationChange={handleLocationChange}
+									/>
+								</div>
+
+								{/* Donor Availability */}
+								<div className="flex items-center space-x-2 p-4 bg-red-50 dark:bg-red-950/20 rounded-lg">
+									<Checkbox
+										id="isAvailableDonor"
+										checked={formData.isAvailableDonor}
+										onCheckedChange={(checked) => handleInputChange('isAvailableDonor', Boolean(checked))}
+									/>
+									<Label
+										htmlFor="isAvailableDonor"
+										className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+									>
+										I am available to donate blood when needed
+									</Label>
+								</div>
+
+								{/* Terms Agreement */}
+								<div className="flex items-center space-x-2">
+									<Checkbox
+										id="agreedToTerms"
+										checked={formData.agreedToTerms}
+										onCheckedChange={(checked) => handleInputChange('agreedToTerms', Boolean(checked))}
+										required
+									/>
+									<Label
+										htmlFor="agreedToTerms"
+										className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+									>
+										I agree to the{' '}
+										<Link to="/terms-of-service" className="text-red-600 hover:underline">
+											Terms of Service
+										</Link>
+										{' '}and{' '}
+										<Link to="/privacy-policy" className="text-red-600 hover:underline">
+											Privacy Policy
+										</Link>
+									</Label>
+								</div>
+
+								{/* Submit Button */}
+								<Button
+									type="submit"
+									className="w-full bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white py-3 text-lg font-semibold"
+									disabled={isSubmitting || !formData.agreedToTerms || emailExists}
+								>
+									{isSubmitting ? (
+										<>
+											<Loader2 className="mr-2 h-5 w-5 animate-spin" />
+											Creating Account...
+										</>
+									) : (
+										'Create Account'
+									)}
 								</Button>
 
-								<div className="text-center text-sm text-muted-foreground">
-									Already have an account?{" "}
-									<Link to="/login" className="text-primary hover:underline font-medium">
-										Sign in here
-									</Link>
+								{/* Login Link */}
+								<div className="text-center">
+									<span className="text-sm text-gray-600 dark:text-gray-300">
+										Already have an account?{' '}
+										<Link to="/login" className="text-red-600 hover:underline font-medium">
+											Sign In
+										</Link>
+									</span>
 								</div>
 							</form>
 						</CardContent>
