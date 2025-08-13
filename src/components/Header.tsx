@@ -1,8 +1,16 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Droplets, Menu, X, User, Bell, LogOut } from "lucide-react";
+import { Droplets, Menu, X, User, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logoMedical from "@/assets/logo-medical.png";
 
@@ -51,21 +59,37 @@ const Header = () => {
 						<ThemeToggle />
 						{isAuthenticated ? (
 							<>
-								<Button variant="ghost" size="icon">
-									<Bell className="h-5 w-5" />
-								</Button>
-								<Button variant="ghost" size="icon" asChild>
-									<Link to="/profile">
-										<User className="h-5 w-5" />
-									</Link>
-								</Button>
-								<Button variant="ghost" size="sm" onClick={logout} className="flex items-center gap-2">
-									<LogOut className="h-4 w-4" />
-									<span className="hidden lg:inline">Logout</span>
-								</Button>
-								<span className="text-sm text-muted-foreground">
-									Hello, {user?.firstName}
-								</span>
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="ghost" size="icon" className="relative">
+											<User className="h-5 w-5" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent className="w-56" align="end" forceMount>
+										<DropdownMenuLabel className="font-normal">
+											<div className="flex flex-col space-y-1">
+												<p className="text-sm font-medium leading-none">
+													{user?.firstName} {user?.lastName}
+												</p>
+												<p className="text-xs leading-none text-muted-foreground">
+													{user?.email}
+												</p>
+											</div>
+										</DropdownMenuLabel>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem asChild>
+											<Link to="/profile" className="flex items-center">
+												<User className="mr-2 h-4 w-4" />
+												<span>Profile</span>
+											</Link>
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem onClick={logout} className="flex items-center text-red-600">
+											<LogOut className="mr-2 h-4 w-4" />
+											<span>Log out</span>
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 							</>
 						) : (
 							<>
@@ -161,15 +185,27 @@ const Header = () => {
 								</div>
 								{isAuthenticated ? (
 									<>
+										<div className="bg-muted/50 rounded-lg p-3 mb-2">
+											<p className="text-sm font-medium">
+												{user?.firstName} {user?.lastName}
+											</p>
+											<p className="text-xs text-muted-foreground">
+												{user?.email}
+											</p>
+										</div>
 										<Button variant="medical" className="w-full" asChild>
-											<Link to="/profile">
+											<Link to="/profile" onClick={() => setIsMenuOpen(false)}>
 												<User className="h-4 w-4" />
 												Profile
 											</Link>
 										</Button>
-										<Button variant="outline" className="w-full" onClick={() => { logout(); setIsMenuOpen(false); }}>
+										<Button
+											variant="outline"
+											className="w-full text-red-600 border-red-200 hover:bg-red-50"
+											onClick={() => { logout(); setIsMenuOpen(false); }}
+										>
 											<LogOut className="h-4 w-4" />
-											Logout
+											Log out
 										</Button>
 									</>
 								) : (

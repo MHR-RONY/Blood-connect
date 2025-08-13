@@ -46,18 +46,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 	const [user, setUser] = useState<User | null>(null);
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
+	const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 	const navigate = useNavigate();
 	const { toast } = useToast();
 
 	// Check if user is authenticated on app load
 	const checkAuth = async (): Promise<boolean> => {
 		try {
+			// Prevent multiple auth checks
+			if (hasCheckedAuth && !isLoading) {
+				return isAuthenticated;
+			}
+
 			const token = tokenStorage.get();
 
 			if (!token) {
 				setIsAuthenticated(false);
 				setUser(null);
 				setIsLoading(false);
+				setHasCheckedAuth(true);
 				return false;
 			}
 
@@ -75,6 +82,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 				setUser(userData.data);
 				setIsAuthenticated(true);
 				setIsLoading(false);
+				setHasCheckedAuth(true);
 				return true;
 			} else {
 				// Token is invalid, remove it
@@ -82,6 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 				setIsAuthenticated(false);
 				setUser(null);
 				setIsLoading(false);
+				setHasCheckedAuth(true);
 				return false;
 			}
 		} catch (error) {
@@ -90,6 +99,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 			setIsAuthenticated(false);
 			setUser(null);
 			setIsLoading(false);
+			setHasCheckedAuth(true);
 			return false;
 		}
 	};
@@ -99,6 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		tokenStorage.set(token);
 		setUser(userData);
 		setIsAuthenticated(true);
+		setHasCheckedAuth(true);
 		toast({
 			title: "Welcome back! 👋",
 			description: `Hello ${userData.firstName}! You're now logged in.`,
@@ -110,6 +121,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		tokenStorage.remove();
 		setUser(null);
 		setIsAuthenticated(false);
+		setHasCheckedAuth(true);
 		toast({
 			title: "Logged out successfully",
 			description: "You have been logged out. See you soon!",
@@ -117,10 +129,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		navigate('/login');
 	};
 
-	// Check authentication on mount
+	// Check authentication on mount - only once
 	useEffect(() => {
-		checkAuth();
-	}, []);
+		const initAuth = async () => {
+			if (!hasCheckedAuth) {
+				try {
+					const token = tokenStorage.get();
+
+					if (!token) {
+						setIsAuthenticated(false);
+						setUser(null);
+						setIsLoading(false);
+						setHasCheckedAuth(true);
+						return;
+					}
+
+					// Verify token with backend
+					const response = await fetch('http://localhost:3001/api/auth/me', {
+						method: 'GET',
+						headers: {
+							'Authorization': `Bearer ${token}`,
+							'Content-Type': 'application/json',
+						},
+					});
+
+					if (response.ok) {
+						const userData = await response.json();
+						setUser(userData.data);
+						setIsAuthenticated(true);
+					} else {
+						// Token is invalid, remove it
+						tokenStorage.remove();
+						setIsAuthenticated(false);
+						setUser(null);
+					}
+				} catch (error) {
+					console.error('Auth check failed:', error);
+					tokenStorage.remove();
+					setIsAuthenticated(false);
+					setUser(null);
+				} finally {
+					setIsLoading(false);
+					setHasCheckedAuth(true);
+				}
+			}
+		};
+		initAuth();
+	}, []); // Empty dependency array - only run once
 
 	const value: AuthContextType = {
 		user,

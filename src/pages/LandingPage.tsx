@@ -92,13 +92,13 @@ const LandingPage = () => {
 						</p>
 						<div className="flex flex-col sm:flex-row gap-4 justify-center">
 							<Button asChild size="lg" variant="secondary" className="text-lg px-8 py-6">
-								<Link to="/signup">
+								<Link to="/donate">
 									Get Started
 								</Link>
 							</Button>
 							<Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 border-white text-red-500 hover:bg-white hover:text-black">
-								<Link to="/login">
-									Sign In
+								<Link to="/donation">
+									Donate Money
 								</Link>
 							</Button>
 						</div>

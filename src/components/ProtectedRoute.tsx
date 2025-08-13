@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -13,35 +13,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 	children,
 	requireAuth = true
 }) => {
-	const { isAuthenticated, isLoading, checkAuth } = useAuth();
+	const { isAuthenticated, isLoading } = useAuth();
 	const location = useLocation();
 	const { toast } = useToast();
-	const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
 	useEffect(() => {
-		const verifyAuth = async () => {
-			if (requireAuth && !isLoading) {
-				const authResult = await checkAuth();
-
-				if (!authResult) {
-					// Show login prompt popup
-					setShowLoginPrompt(true);
-					toast({
-						title: "Authentication Required 🔐",
-						description: "Please login to access this page. Redirecting to login...",
-						variant: "destructive",
-					});
-
-					// Redirect after a short delay to show the popup
-					setTimeout(() => {
-						setShowLoginPrompt(false);
-					}, 2000);
-				}
-			}
-		};
-
-		verifyAuth();
-	}, [requireAuth, isLoading, checkAuth, toast]);
+		// Show toast notification when user tries to access protected route without authentication
+		if (requireAuth && !isLoading && !isAuthenticated) {
+			toast({
+				title: "Authentication Required 🔐",
+				description: "Please login to access this page.",
+				variant: "destructive",
+			});
+		}
+	}, [requireAuth, isLoading, isAuthenticated, toast]);
 
 	// Show loading spinner while checking authentication
 	if (isLoading) {
@@ -62,9 +47,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 		return <Navigate to="/login" replace />;
 	}
 
-	// If user is authenticated but trying to access login/signup, redirect to dashboard
+	// If user is authenticated but trying to access login/signup, redirect to index page
 	if (!requireAuth && isAuthenticated && (location.pathname === '/login' || location.pathname === '/signup')) {
-		return <Navigate to="/dashboard" replace />;
+		return <Navigate to="/" replace />;
 	}
 
 	return <>{children}</>;

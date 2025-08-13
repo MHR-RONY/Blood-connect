@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BloodDropIcon from "@/components/BloodDropIcon";
+import AnimatedCounter from "@/components/AnimatedCounter";
 
 const MoneyDonationPage = () => {
 	const [donationData, setDonationData] = useState({
@@ -101,7 +102,12 @@ const MoneyDonationPage = () => {
 								<div className="flex justify-center mb-2">
 									<Users className="h-8 w-8 text-primary" />
 								</div>
-								<div className="text-2xl font-bold text-primary">2,500+</div>
+								<AnimatedCounter
+									end={2500}
+									suffix="+"
+									className="text-2xl font-bold text-primary"
+									duration={2500}
+								/>
 								<div className="text-sm text-muted-foreground">Lives Saved</div>
 							</CardContent>
 						</Card>

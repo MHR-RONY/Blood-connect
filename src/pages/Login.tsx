@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { authApi, ApiError } from "@/services/api";
@@ -26,6 +26,7 @@ const Login = () => {
 
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+	const [showPassword, setShowPassword] = useState(false);
 
 	// Get the page user was trying to access (we'll redirect to index instead)
 	const from = '/';
@@ -168,13 +169,26 @@ const Login = () => {
 										<Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
 										<Input
 											id="password"
-											type="password"
-											className="pl-10"
+											type={showPassword ? "text" : "password"}
+											className="pl-10 pr-10"
 											placeholder="Enter your password"
 											value={formData.password}
 											onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
 											required
 										/>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+											onClick={() => setShowPassword(!showPassword)}
+										>
+											{showPassword ? (
+												<EyeOff className="h-4 w-4 text-muted-foreground" />
+											) : (
+												<Eye className="h-4 w-4 text-muted-foreground" />
+											)}
+										</Button>
 									</div>
 								</div>
 
@@ -208,24 +222,6 @@ const Login = () => {
 									</Link>
 								</div>
 							</form>
-
-							{/* Emergency Access */}
-							<div className="mt-8 pt-6 border-t border-border">
-								<div className="bg-emergency/10 border border-emergency/20 rounded-lg p-4">
-									<div className="flex items-start space-x-3">
-										<AlertCircle className="h-5 w-5 text-emergency mt-0.5" />
-										<div>
-											<h4 className="font-semibold text-emergency text-sm">Emergency Access</h4>
-											<p className="text-xs text-muted-foreground mt-1">
-												Need urgent blood? Access emergency request without signing in.
-											</p>
-											<Button variant="emergency" size="sm" className="mt-3">
-												Emergency Request
-											</Button>
-										</div>
-									</div>
-								</div>
-							</div>
 						</CardContent>
 					</Card>
 				</div>

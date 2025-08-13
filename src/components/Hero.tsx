@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { MapPin, Users, Clock } from "lucide-react";
 import heroImage from "@/assets/hero-blood-donation.jpg";
 import BloodDropIcon from "@/components/BloodDropIcon";
+import AnimatedCounter from "@/components/AnimatedCounter";
 
 const Hero = () => {
 	return (
@@ -35,11 +36,21 @@ const Hero = () => {
 						{/* Stats */}
 						<div className="grid grid-cols-3 gap-6 pt-8">
 							<div className="text-center">
-								<div className="text-2xl md:text-3xl font-bold text-primary">2,500+</div>
+								<AnimatedCounter
+									end={2500}
+									suffix="+"
+									className="text-2xl md:text-3xl font-bold text-primary"
+									duration={2500}
+								/>
 								<div className="text-sm text-muted-foreground">Lives Saved</div>
 							</div>
 							<div className="text-center">
-								<div className="text-2xl md:text-3xl font-bold text-primary">1,200+</div>
+								<AnimatedCounter
+									end={1200}
+									suffix="+"
+									className="text-2xl md:text-3xl font-bold text-primary"
+									duration={2000}
+								/>
 								<div className="text-sm text-muted-foreground">Active Donors</div>
 							</div>
 							<div className="text-center">

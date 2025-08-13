@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { User, Mail, Lock, Phone, Calendar, UserCheck, Loader2, AlertCircle, Check } from "lucide-react";
+import { User, Mail, Lock, Phone, Calendar, UserCheck, Loader2, AlertCircle, Check, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import BloodTypeSelector from "@/components/BloodTypeSelector";
@@ -42,6 +42,8 @@ const SignUp = () => {
 	const [emailChecking, setEmailChecking] = useState(false);
 	const [emailExists, setEmailExists] = useState(false);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 	// Real-time email validation
 	useEffect(() => {
@@ -385,14 +387,30 @@ const SignUp = () => {
 											<Lock className="w-4 h-4" />
 											Password *
 										</Label>
-										<Input
-											id="password"
-											type="password"
-											placeholder="Create a strong password"
-											value={formData.password}
-											onChange={(e) => handleInputChange('password', e.target.value)}
-											required
-										/>
+										<div className="relative">
+											<Input
+												id="password"
+												type={showPassword ? "text" : "password"}
+												placeholder="Create a strong password"
+												value={formData.password}
+												onChange={(e) => handleInputChange('password', e.target.value)}
+												className="pr-10"
+												required
+											/>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+												onClick={() => setShowPassword(!showPassword)}
+											>
+												{showPassword ? (
+													<EyeOff className="h-4 w-4 text-muted-foreground" />
+												) : (
+													<Eye className="h-4 w-4 text-muted-foreground" />
+												)}
+											</Button>
+										</div>
 									</div>
 
 									<div className="space-y-2">
@@ -400,14 +418,30 @@ const SignUp = () => {
 											<Lock className="w-4 h-4" />
 											Confirm Password *
 										</Label>
-										<Input
-											id="confirmPassword"
-											type="password"
-											placeholder="Confirm your password"
-											value={formData.confirmPassword}
-											onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-											required
-										/>
+										<div className="relative">
+											<Input
+												id="confirmPassword"
+												type={showConfirmPassword ? "text" : "password"}
+												placeholder="Confirm your password"
+												value={formData.confirmPassword}
+												onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+												className="pr-10"
+												required
+											/>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+												onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+											>
+												{showConfirmPassword ? (
+													<EyeOff className="h-4 w-4 text-muted-foreground" />
+												) : (
+													<Eye className="h-4 w-4 text-muted-foreground" />
+												)}
+											</Button>
+										</div>
 									</div>
 								</div>
 
