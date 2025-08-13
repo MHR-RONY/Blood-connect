@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { availableDonorAPI } from "@/services/donationAPI";
 import {
 	MapPin,
 	Phone,
@@ -16,7 +18,11 @@ import {
 	Star,
 	Award,
 	Calendar,
-	Navigation
+	Navigation,
+	Loader2,
+	Copy,
+	MessageCircle,
+	User
 } from "lucide-react";
 import BloodTypeSelector from "@/components/BloodTypeSelector";
 import LocationSelector from "@/components/LocationSelector";
@@ -31,101 +37,79 @@ const FindDonorsPage = () => {
 		searchQuery: ""
 	});
 
-	const [donors] = useState([
-		{
-			id: 1,
-			name: "Sarah Johnson",
-			bloodType: "O+",
-			location: "Downtown, New York",
-			distance: "2.3 km",
-			lastDonation: "2024-01-15",
-			totalDonations: 15,
-			rating: 4.9,
-			availability: "Available",
-			phone: "+1 (555) 123-4567",
-			email: "sarah.j@email.com",
-			verified: true,
-			emergencyContact: true
-		},
-		{
-			id: 2,
-			name: "Michael Chen",
-			bloodType: "A+",
-			location: "Midtown, New York",
-			distance: "3.7 km",
-			lastDonation: "2024-02-01",
-			totalDonations: 8,
-			rating: 4.7,
-			availability: "Available",
-			phone: "+1 (555) 234-5678",
-			email: "m.chen@email.com",
-			verified: true,
-			emergencyContact: false
-		},
-		{
-			id: 3,
-			name: "Emma Rodriguez",
-			bloodType: "B+",
-			location: "Brooklyn, New York",
-			distance: "5.2 km",
-			lastDonation: "2023-12-20",
-			totalDonations: 22,
-			rating: 5.0,
-			availability: "Busy",
-			phone: "+1 (555) 345-6789",
-			email: "emma.r@email.com",
-			verified: true,
-			emergencyContact: true
-		},
-		{
-			id: 4,
-			name: "David Kim",
-			bloodType: "AB+",
-			location: "Queens, New York",
-			distance: "7.8 km",
-			lastDonation: "2024-01-30",
-			totalDonations: 12,
-			rating: 4.8,
-			availability: "Available",
-			phone: "+1 (555) 456-7890",
-			email: "david.k@email.com",
-			verified: false,
-			emergencyContact: true
-		},
-		{
-			id: 5,
-			name: "Lisa Thompson",
-			bloodType: "O-",
-			location: "Manhattan, New York",
-			distance: "4.1 km",
-			lastDonation: "2024-02-10",
-			totalDonations: 18,
-			rating: 4.9,
-			availability: "Available",
-			phone: "+1 (555) 567-8901",
-			email: "lisa.t@email.com",
-			verified: true,
-			emergencyContact: true
-		},
-		{
-			id: 6,
-			name: "Robert Wilson",
-			bloodType: "A-",
-			location: "Bronx, New York",
-			distance: "9.5 km",
-			lastDonation: "2024-01-05",
-			totalDonations: 7,
-			rating: 4.6,
-			availability: "Available",
-			phone: "+1 (555) 678-9012",
-			email: "robert.w@email.com",
-			verified: true,
-			emergencyContact: false
-		}
-	]);
+	const [donors, setDonors] = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState("");
+	const [selectedDonor, setSelectedDonor] = useState(null);
+	const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+
+	// Fetch available donors from API
+	useEffect(() => {
+		const fetchDonors = async () => {
+			setLoading(true);
+			try {
+				const response = await availableDonorAPI.getAvailableDonors({
+					bloodType: filters.bloodType || undefined,
+					city: filters.location.city || undefined
+				});
+				
+				if (response.success) {
+					// Transform API data to match UI structure
+					const transformedDonors = response.data.map((donor) => {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const d = donor as any;
+						return {
+							id: d._id,
+							name: d.user?.firstName && d.user?.lastName 
+								? `${d.user.firstName} ${d.user.lastName}`
+								: d.donorInfo?.name || "Anonymous Donor",
+							bloodType: d.user?.bloodType || d.bloodInfo?.bloodType || d.bloodType || "Unknown",
+							location: d.user?.location 
+								? `${d.user.location.area}, ${d.user.location.city}`
+								: d.donorInfo?.city || "Location not specified",
+							distance: "Within city", // Default since we don't have geolocation
+							lastDonation: d.medicalHistory?.lastDonation || "No recent donation",
+							totalDonations: 1, // Default for available donors
+							rating: 4.5, // Default rating
+							availability: d.isActive ? "Available" : "Busy",
+							phone: d.user?.phone || d.donorInfo?.phone || "Not provided",
+							email: d.user?.email || d.donorInfo?.email || "Not provided",
+							verified: true, // All registered users are verified
+							emergencyContact: d.hasEmergencyContact || false,
+							notes: d.notes,
+							registeredAt: d.registeredAt,
+							schedule: d.availability?.schedule || "anytime",
+							contactPreference: d.availability?.contactPreference || "phone"
+						};
+					});
+					setDonors(transformedDonors);
+				} else {
+					setError("Failed to fetch available donors");
+				}
+			} catch (err) {
+				console.error("Error fetching donors:", err);
+				setError("Error loading donors. Please try again.");
+				setDonors([]); // Set empty array as fallback
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchDonors();
+	}, [filters.bloodType, filters.location.city]); // Re-fetch when filters change
 
 	const handleLocationChange = (location: { city: string; area: string; coordinates?: { lat: number; lng: number } }) => {
 		setFilters(prev => ({ ...prev, location }));
+	};
+
+	const handleContactDonor = (donor) => {
+		setSelectedDonor(donor);
+		setIsContactModalOpen(true);
+	};
+
+	const copyToClipboard = (text: string) => {
+		navigator.clipboard.writeText(text);
+		// You can add a toast notification here if needed
 	};
 
 	const filteredDonors = donors.filter(donor => {
@@ -337,6 +321,7 @@ const FindDonorsPage = () => {
 														<Button
 															className="w-full"
 															disabled={donor.availability === "Busy"}
+															onClick={() => handleContactDonor(donor)}
 														>
 															<BloodDropIcon size="sm" className="mr-2" />
 															Contact Donor
@@ -382,6 +367,199 @@ const FindDonorsPage = () => {
 				</div>
 			</div>
 			<Footer />
+
+			{/* Contact Donor Modal */}
+			<Dialog open={isContactModalOpen} onOpenChange={setIsContactModalOpen}>
+				<DialogContent className="sm:max-w-[420px] max-h-[80vh] flex flex-col">
+					<DialogHeader className="flex-shrink-0">
+						<DialogTitle className="flex items-center space-x-2">
+							<User className="h-5 w-5" />
+							<span>Contact Donor</span>
+						</DialogTitle>
+						<DialogDescription>
+							Get in touch with the blood donor for your request
+						</DialogDescription>
+					</DialogHeader>
+					
+					{selectedDonor && (
+						<div className="flex-1 overflow-y-auto space-y-4 pr-2">
+							{/* Donor Basic Info */}
+							<div className="flex items-center space-x-3 p-3 bg-primary/5 rounded-lg">
+								<div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+									<User className="h-5 w-5 text-primary" />
+								</div>
+								<div className="flex-1 min-w-0">
+									<h3 className="text-base font-semibold truncate">{selectedDonor.name}</h3>
+									<div className="flex items-center space-x-2">
+										<Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">
+											{selectedDonor.bloodType}
+										</Badge>
+										<Badge variant={selectedDonor.availability === "Available" ? "default" : "secondary"} className="text-xs">
+											{selectedDonor.availability}
+										</Badge>
+									</div>
+								</div>
+							</div>
+
+							{/* Contact Information */}
+							<div className="space-y-3">
+								<h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
+									Contact Information
+								</h4>
+								
+								{/* Phone */}
+								<div className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50">
+									<div className="flex items-center space-x-2 min-w-0 flex-1">
+										<Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+										<div className="min-w-0 flex-1">
+											<p className="text-xs font-medium">Phone</p>
+											<p className="text-xs text-muted-foreground truncate">{selectedDonor.phone}</p>
+										</div>
+									</div>
+									<div className="flex space-x-1 flex-shrink-0">
+										<Button 
+											size="sm" 
+											variant="outline"
+											className="h-7 w-7 p-0"
+											onClick={() => copyToClipboard(selectedDonor.phone)}
+										>
+											<Copy className="h-3 w-3" />
+										</Button>
+										<Button 
+											size="sm" 
+											className="h-7 px-2"
+											onClick={() => window.open(`tel:${selectedDonor.phone}`)}
+										>
+											<Phone className="h-3 w-3" />
+										</Button>
+									</div>
+								</div>
+
+								{/* Email */}
+								<div className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50">
+									<div className="flex items-center space-x-2 min-w-0 flex-1">
+										<Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+										<div className="min-w-0 flex-1">
+											<p className="text-xs font-medium">Email</p>
+											<p className="text-xs text-muted-foreground truncate">{selectedDonor.email}</p>
+										</div>
+									</div>
+									<div className="flex space-x-1 flex-shrink-0">
+										<Button 
+											size="sm" 
+											variant="outline"
+											className="h-7 w-7 p-0"
+											onClick={() => copyToClipboard(selectedDonor.email)}
+										>
+											<Copy className="h-3 w-3" />
+										</Button>
+										<Button 
+											size="sm" 
+											className="h-7 px-2"
+											onClick={() => window.open(`mailto:${selectedDonor.email}`)}
+										>
+											<Mail className="h-3 w-3" />
+										</Button>
+									</div>
+								</div>
+
+								{/* Location */}
+								<div className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50">
+									<div className="flex items-center space-x-2 min-w-0 flex-1">
+										<MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+										<div className="min-w-0 flex-1">
+											<p className="text-xs font-medium">Location</p>
+											<p className="text-xs text-muted-foreground truncate">{selectedDonor.location}</p>
+										</div>
+									</div>
+									<Button 
+										size="sm" 
+										variant="outline"
+										className="h-7 w-7 p-0 flex-shrink-0"
+										onClick={() => copyToClipboard(selectedDonor.location)}
+									>
+										<Copy className="h-3 w-3" />
+									</Button>
+								</div>
+							</div>
+
+							{/* Additional Info */}
+							<div className="space-y-3">
+								<h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
+									Donor Information
+								</h4>
+								
+								<div className="grid grid-cols-2 gap-2">
+									<div className="text-center p-2 bg-muted/30 rounded-lg">
+										<div className="text-sm font-bold">{selectedDonor.totalDonations}</div>
+										<div className="text-xs text-muted-foreground">Donations</div>
+									</div>
+									<div className="text-center p-2 bg-muted/30 rounded-lg">
+										<div className="flex items-center justify-center text-sm font-bold">
+											<Star className="h-3 w-3 text-yellow-500 mr-1" />
+											{selectedDonor.rating}
+										</div>
+										<div className="text-xs text-muted-foreground">Rating</div>
+									</div>
+								</div>
+
+								{selectedDonor.lastDonation && (
+									<div className="flex items-center space-x-2 p-2 bg-muted/30 rounded-lg">
+										<Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+										<div className="min-w-0 flex-1">
+											<p className="text-xs font-medium">Last Donation</p>
+											<p className="text-xs text-muted-foreground">{selectedDonor.lastDonation}</p>
+										</div>
+									</div>
+								)}
+
+								{selectedDonor.schedule && (
+									<div className="flex items-center space-x-2 p-2 bg-muted/30 rounded-lg">
+										<Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+										<div className="min-w-0 flex-1">
+											<p className="text-xs font-medium">Preferred Contact Time</p>
+											<p className="text-xs text-muted-foreground capitalize">{selectedDonor.schedule}</p>
+										</div>
+									</div>
+								)}
+							</div>
+
+							{selectedDonor.emergencyContact && (
+								<div className="p-2 bg-destructive/10 border border-destructive/20 rounded-lg">
+									<div className="flex items-center space-x-2 text-destructive">
+										<Phone className="h-3 w-3 flex-shrink-0" />
+										<span className="text-xs font-medium">Emergency Contact Available</span>
+									</div>
+									<p className="text-xs text-muted-foreground mt-1">
+										This donor is available for emergency blood requests
+									</p>
+								</div>
+							)}
+						</div>
+					)}
+
+					{/* Action Buttons - Fixed at bottom */}
+					{selectedDonor && (
+						<div className="flex space-x-2 pt-3 border-t flex-shrink-0">
+							<Button 
+								className="flex-1 h-8 text-xs"
+								onClick={() => window.open(`tel:${selectedDonor.phone}`)}
+							>
+								<Phone className="h-3 w-3 mr-1" />
+								Call
+							</Button>
+							<Button 
+								variant="outline" 
+								className="flex-1 h-8 text-xs"
+								onClick={() => window.open(`sms:${selectedDonor.phone}`)}
+							>
+								<MessageCircle className="h-3 w-3 mr-1" />
+								SMS
+							</Button>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 };

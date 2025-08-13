@@ -115,7 +115,7 @@ export const availableDonorAPI = {
     return response.json();
   },
 
-  getAvailableDonors: async (filters?: { bloodType?: string; city?: string; page?: number }): Promise<ApiResponse<{ donors: AvailableDonor[]; total: number; page: number; totalPages: number }>> => {
+  getAvailableDonors: async (filters?: { bloodType?: string; city?: string; page?: number }): Promise<ApiResponse<AvailableDonor[]>> => {
     const params = new URLSearchParams();
     if (filters?.bloodType) params.append('bloodType', filters.bloodType);
     if (filters?.city) params.append('city', filters.city);

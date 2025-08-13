@@ -137,16 +137,29 @@ router.get('/available', async (req, res) => {
 		const skip = (parseInt(page) - 1) * parseInt(limit);
 
 		const donors = await AvailableDonor.find(query)
-			.select('-medicalHistory -emergencyContact') // Don't expose sensitive medical info
+			.select('-medicalHistory') // Don't expose sensitive medical info but keep emergencyContact availability
 			.sort({ registeredAt: -1 })
 			.limit(parseInt(limit))
 			.skip(skip);
 
 		const total = await AvailableDonor.countDocuments(query);
 
+		// Transform donors data to include emergency contact availability flag without exposing contact details
+		const transformedDonors = donors.map(donor => {
+			const donorObj = donor.toObject();
+			
+			// Add emergency contact availability flag
+			donorObj.hasEmergencyContact = !!(donorObj.emergencyContact && donorObj.emergencyContact.phone);
+			
+			// Remove actual emergency contact details for privacy
+			delete donorObj.emergencyContact;
+			
+			return donorObj;
+		});
+
 		res.json({
 			success: true,
-			data: donors,
+			data: transformedDonors,
 			pagination: {
 				page: parseInt(page),
 				limit: parseInt(limit),
