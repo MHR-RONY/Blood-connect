@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Search, Calendar, MapPin, Phone, Eye } from 'lucide-react';
 import BloodDropIcon from '@/components/BloodDropIcon';
+import DonorDetailsDialog from '@/components/DonorDetailsDialog';
 import { adminApi, AdminDonor, BloodTypeStats } from '@/services/adminApi';
 import { useToast } from '@/hooks/use-toast';
 import BloodLoading from '@/components/ui/blood-loading';
@@ -23,6 +24,8 @@ const DonorsPage = () => {
 	const [donors, setDonors] = useState<AdminDonor[]>([]);
 	const [bloodTypeStats, setBloodTypeStats] = useState<BloodTypeStats>({});
 	const [loading, setLoading] = useState(false);
+	const [selectedDonor, setSelectedDonor] = useState<AdminDonor | null>(null);
+	const [donorDetailsOpen, setDonorDetailsOpen] = useState(false);
 	const [pagination, setPagination] = useState({
 		page: 1,
 		total: 0,
@@ -80,6 +83,28 @@ const DonorsPage = () => {
 	useEffect(() => {
 		fetchDonors();
 	}, [fetchDonors]);
+
+	// Handle view donor details
+	const handleViewDonor = (donor: AdminDonor) => {
+		setSelectedDonor(donor);
+		setDonorDetailsOpen(true);
+	};
+
+	// Handle contact donor
+	const handleContactDonor = (donor: AdminDonor) => {
+		// Create a mailto link
+		const subject = encodeURIComponent('Blood Donation Request');
+		const body = encodeURIComponent(`Dear ${donor.firstName} ${donor.lastName},\n\nWe hope this message finds you well. We are reaching out regarding a blood donation opportunity.\n\nBest regards,\nBlood Connect Team`);
+		const mailtoLink = `mailto:${donor.email}?subject=${subject}&body=${body}`;
+
+		// Open the default email client
+		window.open(mailtoLink, '_blank');
+
+		toast({
+			title: 'Email Client Opened',
+			description: `Opening email to contact ${donor.firstName} ${donor.lastName}`,
+		});
+	};
 
 	const getStatusBadge = (donor: AdminDonor) => {
 		if (!donor.isActive) {
@@ -209,11 +234,19 @@ const DonorsPage = () => {
 											</TableCell>
 											<TableCell>
 												<div className="flex gap-2">
-													<Button variant="outline" size="sm">
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => handleViewDonor(donor)}
+													>
 														<Eye className="h-4 w-4 mr-1" />
 														View
 													</Button>
-													<Button variant="outline" size="sm">
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => handleContactDonor(donor)}
+													>
 														Contact
 													</Button>
 												</div>
@@ -262,6 +295,13 @@ const DonorsPage = () => {
 					)}
 				</CardContent>
 			</Card>
+
+			{/* Donor Details Dialog */}
+			<DonorDetailsDialog
+				donor={selectedDonor}
+				open={donorDetailsOpen}
+				onOpenChange={setDonorDetailsOpen}
+			/>
 		</div>
 	);
 };

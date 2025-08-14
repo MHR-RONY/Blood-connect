@@ -16,6 +16,7 @@ const emergencyRoutes = require('./routes/emergency');
 const adminRoutes = require('./routes/admin');
 const hospitalDonationRoutes = require('./routes/hospitalDonations');
 const availableDonorRoutes = require('./routes/availableDonors');
+const inventoryRoutes = require('./routes/inventory');
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use('/api/donors', availableDonorRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/emergency', emergencyRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
