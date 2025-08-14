@@ -147,6 +147,23 @@ const userSchema = new mongoose.Schema({
 		type: Boolean,
 		default: true
 	},
+	isBanned: {
+		type: Boolean,
+		default: false
+	},
+	banReason: {
+		type: String,
+		default: null
+	},
+	bannedBy: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'User',
+		default: null
+	},
+	bannedAt: {
+		type: Date,
+		default: null
+	},
 	lastLogin: {
 		type: Date,
 		default: Date.now

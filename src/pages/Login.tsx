@@ -94,6 +94,26 @@ const Login = () => {
 			console.error('Login error:', error);
 
 			if (error instanceof ApiError) {
+				// Check if user is banned
+				if (error.status === 403 && error.responseData?.isBanned) {
+					// Store ban information for the ban page
+					localStorage.setItem('banInfo', JSON.stringify(error.responseData.banInfo || {}));
+
+					toast({
+						title: "Account Suspended",
+						description: "Your account has been suspended. Redirecting to details page.",
+						variant: "destructive",
+					});
+
+					// Redirect to ban page after a short delay
+					setTimeout(() => {
+						navigate('/banned', { replace: true });
+					}, 2000);
+
+					setIsSubmitting(false);
+					return;
+				}
+
 				if (error.status === 401) {
 					toast({
 						title: "Invalid Credentials",
@@ -219,6 +239,15 @@ const Login = () => {
 									Don't have an account?{" "}
 									<Link to="/signup" className="text-primary hover:underline font-medium">
 										Sign up here
+									</Link>
+								</div>
+
+								<div className="text-center">
+									<Link
+										to="/admin/login"
+										className="text-xs text-muted-foreground hover:text-foreground"
+									>
+										Administrator access
 									</Link>
 								</div>
 							</form>

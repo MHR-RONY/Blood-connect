@@ -1,6 +1,7 @@
 // API service for authentication and user management
+import config from '@/config/env';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = config.API_BASE_URL;
 
 export interface SignUpRequest {
 	firstName: string;
@@ -58,7 +59,8 @@ class ApiError extends Error {
 	constructor(
 		message: string,
 		public status: number,
-		public errors?: string[]
+		public errors?: string[],
+		public responseData?: Record<string, unknown>
 	) {
 		super(message);
 		this.name = 'ApiError';
@@ -72,7 +74,8 @@ const handleApiResponse = async <T>(response: Response): Promise<ApiResponse<T>>
 		throw new ApiError(
 			data.message || 'An error occurred',
 			response.status,
-			data.errors
+			data.errors,
+			data
 		);
 	}
 

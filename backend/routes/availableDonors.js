@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const AvailableDonor = require('../models/AvailableDonor');
+const User = require('../models/User');
 
 // @route   POST /api/donors/register
 // @desc    Register as available donor
@@ -22,7 +23,7 @@ router.post('/register', authenticate, async (req, res) => {
 
 		// Check if user is already registered as available donor
 		const existingDonor = await AvailableDonor.findOne({ userId: user.id });
-		
+
 		if (existingDonor) {
 			// Update existing donor information
 			existingDonor.donorInfo = {
@@ -56,6 +57,11 @@ router.post('/register', authenticate, async (req, res) => {
 			existingDonor.updatedAt = new Date();
 
 			await existingDonor.save();
+
+			// Update user's isAvailableDonor status
+			await User.findByIdAndUpdate(user.id, {
+				isAvailableDonor: isAvailable !== false
+			});
 
 			return res.json({
 				success: true,
@@ -99,6 +105,11 @@ router.post('/register', authenticate, async (req, res) => {
 		});
 
 		await availableDonor.save();
+
+		// Update user's isAvailableDonor status
+		await User.findByIdAndUpdate(user.id, {
+			isAvailableDonor: isAvailable !== false
+		});
 
 		res.status(201).json({
 			success: true,
@@ -147,13 +158,13 @@ router.get('/available', async (req, res) => {
 		// Transform donors data to include emergency contact availability flag without exposing contact details
 		const transformedDonors = donors.map(donor => {
 			const donorObj = donor.toObject();
-			
+
 			// Add emergency contact availability flag
 			donorObj.hasEmergencyContact = !!(donorObj.emergencyContact && donorObj.emergencyContact.phone);
-			
+
 			// Remove actual emergency contact details for privacy
 			delete donorObj.emergencyContact;
-			
+
 			return donorObj;
 		});
 

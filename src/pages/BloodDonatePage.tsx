@@ -79,7 +79,7 @@ const BloodDonatePage = () => {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		
+
 		if (!user) {
 			toast({
 				title: "Authentication Required",
@@ -90,7 +90,7 @@ const BloodDonatePage = () => {
 		}
 
 		setIsSubmitting(true);
-		
+
 		try {
 			if (donationData.donationType === "hospital") {
 				// Submit hospital donation request
@@ -106,12 +106,12 @@ const BloodDonatePage = () => {
 				};
 
 				await hospitalDonationAPI.submit(hospitalRequest);
-				
+
 				toast({
 					title: "Donation Request Submitted! 🩸",
 					description: "Your hospital donation appointment has been submitted. You'll receive confirmation once approved by our admin team.",
 				});
-				
+
 			} else if (donationData.donationType === "people") {
 				// Register as available donor
 				const donorRequest = {
@@ -124,13 +124,13 @@ const BloodDonatePage = () => {
 				};
 
 				await availableDonorAPI.register(donorRequest);
-				
+
 				toast({
 					title: "Registered as Available Donor! 👥",
 					description: "You have been registered as an available donor. People in need can now contact you directly.",
 				});
 			}
-			
+
 			// Reset form
 			setDonationData({
 				bloodType: "",
@@ -151,7 +151,7 @@ const BloodDonatePage = () => {
 				termsAccepted: false,
 				eligibilityConfirmed: false
 			});
-			
+
 		} catch (error) {
 			console.error('Submission error:', error);
 			toast({
@@ -612,11 +612,11 @@ const BloodDonatePage = () => {
 											) : (
 												<>
 													<Droplets className="h-5 w-5 mr-2" />
-													{donationData.donationType === "hospital" 
-														? "Submit Hospital Donation Request" 
+													{donationData.donationType === "hospital"
+														? "Submit Hospital Donation Request"
 														: donationData.donationType === "people"
-														? "Register as Available Donor"
-														: "Submit Donation Application"
+															? "Register as Available Donor"
+															: "Submit Donation Application"
 													}
 												</>
 											)}

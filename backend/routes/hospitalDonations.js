@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const HospitalDonation = require('../models/HospitalDonation');
+const User = require('../models/User');
 
 // @route   POST /api/donations/hospital
 // @desc    Submit hospital donation request
@@ -58,7 +59,14 @@ router.post('/hospital', authenticate, async (req, res) => {
 			submittedAt: new Date()
 		});
 
-		await hospitalDonation.save();		res.status(201).json({
+		await hospitalDonation.save();
+
+		// Update user's isAvailableDonor status since they're donating
+		await User.findByIdAndUpdate(user.id, {
+			isAvailableDonor: true
+		});
+
+		res.status(201).json({
 			success: true,
 			message: 'Hospital donation request submitted successfully',
 			data: hospitalDonation
@@ -127,7 +135,7 @@ router.put('/hospital/:id/status', authenticate, async (req, res) => {
 		const donationId = req.params.id;
 
 		const donation = await HospitalDonation.findById(donationId);
-		
+
 		if (!donation) {
 			return res.status(404).json({
 				success: false,

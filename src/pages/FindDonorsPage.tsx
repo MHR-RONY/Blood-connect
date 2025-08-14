@@ -19,7 +19,6 @@ import {
 	Award,
 	Calendar,
 	Navigation,
-	Loader2,
 	Copy,
 	MessageCircle,
 	User
@@ -27,6 +26,7 @@ import {
 import BloodTypeSelector from "@/components/BloodTypeSelector";
 import LocationSelector from "@/components/LocationSelector";
 import BloodDropIcon from "@/components/BloodDropIcon";
+import BloodLoading from "@/components/ui/blood-loading";
 
 const FindDonorsPage = () => {
 	const [filters, setFilters] = useState({
@@ -52,7 +52,7 @@ const FindDonorsPage = () => {
 					bloodType: filters.bloodType || undefined,
 					city: filters.location.city || undefined
 				});
-				
+
 				if (response.success) {
 					// Transform API data to match UI structure
 					const transformedDonors = response.data.map((donor) => {
@@ -60,13 +60,13 @@ const FindDonorsPage = () => {
 						const d = donor as any;
 						return {
 							id: d._id,
-							name: d.user?.firstName && d.user?.lastName 
+							name: d.user?.firstName && d.user?.lastName
 								? `${d.user.firstName} ${d.user.lastName}`
 								: d.donorInfo?.name || "Anonymous Donor",
 							bloodType: d.user?.bloodType || d.bloodInfo?.bloodType || d.bloodType || "Unknown",
-							location: d.user?.location 
+							location: d.user?.location
 								? `${d.user.location.area}, ${d.user.location.city}`
-								: d.donorInfo?.city || "Location not specified",
+								: d.donorInfo?.address || d.donorInfo?.city || "Location not specified",
 							distance: "Within city", // Default since we don't have geolocation
 							lastDonation: d.medicalHistory?.lastDonation || "No recent donation",
 							totalDonations: 1, // Default for available donors
@@ -218,150 +218,154 @@ const FindDonorsPage = () => {
 
 						{/* Donors List */}
 						<div className="lg:col-span-3">
-							<div className="space-y-6">
-								{/* Results Header */}
-								<div className="flex items-center justify-between">
-									<div>
-										<h2 className="text-xl font-semibold">
-											{filteredDonors.length} Donors Found
-										</h2>
-										<p className="text-sm text-muted-foreground">
-											Showing available donors in your area
-										</p>
+							{loading ? (
+								<BloodLoading message="Finding available donors" />
+							) : (
+								<div className="space-y-6">
+									{/* Results Header */}
+									<div className="flex items-center justify-between">
+										<div>
+											<h2 className="text-xl font-semibold">
+												{filteredDonors.length} Donors Found
+											</h2>
+											<p className="text-sm text-muted-foreground">
+												Showing available donors in your area
+											</p>
+										</div>
+										<Select defaultValue="distance">
+											<SelectTrigger className="w-[180px]">
+												<SelectValue placeholder="Sort by" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="distance">Nearest First</SelectItem>
+												<SelectItem value="rating">Highest Rated</SelectItem>
+												<SelectItem value="donations">Most Donations</SelectItem>
+												<SelectItem value="recent">Recently Active</SelectItem>
+											</SelectContent>
+										</Select>
 									</div>
-									<Select defaultValue="distance">
-										<SelectTrigger className="w-[180px]">
-											<SelectValue placeholder="Sort by" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="distance">Nearest First</SelectItem>
-											<SelectItem value="rating">Highest Rated</SelectItem>
-											<SelectItem value="donations">Most Donations</SelectItem>
-											<SelectItem value="recent">Recently Active</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
 
-								{/* Donors Grid */}
-								<div className="space-y-4">
-									{filteredDonors.map((donor) => (
-										<Card key={donor.id} className="hover:shadow-lg transition-shadow">
-											<CardContent className="p-6">
-												<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-													{/* Donor Info */}
-													<div className="md:col-span-2 space-y-4">
-														<div className="flex items-start justify-between">
-															<div className="space-y-2">
-																<div className="flex items-center space-x-2">
-																	<h3 className="text-lg font-semibold">{donor.name}</h3>
-																	{donor.verified && (
-																		<Badge variant="secondary" className="text-xs">
-																			✓ Verified
-																		</Badge>
-																	)}
-																	{donor.emergencyContact && (
-																		<Badge variant="destructive" className="text-xs">
-																			Emergency Contact
-																		</Badge>
-																	)}
-																</div>
-																<div className="flex items-center space-x-4 text-sm text-muted-foreground">
-																	<div className="flex items-center">
-																		<MapPin className="h-4 w-4 mr-1" />
-																		{donor.location} • {donor.distance}
+									{/* Donors Grid */}
+									<div className="space-y-4">
+										{filteredDonors.map((donor) => (
+											<Card key={donor.id} className="hover:shadow-lg transition-shadow">
+												<CardContent className="p-6">
+													<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+														{/* Donor Info */}
+														<div className="md:col-span-2 space-y-4">
+															<div className="flex items-start justify-between">
+																<div className="space-y-2">
+																	<div className="flex items-center space-x-2">
+																		<h3 className="text-lg font-semibold">{donor.name}</h3>
+																		{donor.verified && (
+																			<Badge variant="secondary" className="text-xs">
+																				✓ Verified
+																			</Badge>
+																		)}
+																		{donor.emergencyContact && (
+																			<Badge variant="destructive" className="text-xs">
+																				Emergency Contact
+																			</Badge>
+																		)}
+																	</div>
+																	<div className="flex items-center space-x-4 text-sm text-muted-foreground">
+																		<div className="flex items-center">
+																			<MapPin className="h-4 w-4 mr-1" />
+																			{donor.location} • {donor.distance}
+																		</div>
 																	</div>
 																</div>
-															</div>
-															<div className="text-right">
-																<Badge
-																	variant="outline"
-																	className={`${getAvailabilityColor(donor.availability)} border-0`}
-																>
-																	{donor.availability}
-																</Badge>
-															</div>
-														</div>
-
-														<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-															<div className="text-center p-3 bg-primary/5 rounded-lg">
-																<div className="text-xl font-bold text-primary">{donor.bloodType}</div>
-																<div className="text-xs text-muted-foreground">Blood Type</div>
-															</div>
-															<div className="text-center p-3 bg-success/5 rounded-lg">
-																<div className="text-xl font-bold text-success">{donor.totalDonations}</div>
-																<div className="text-xs text-muted-foreground">Donations</div>
-															</div>
-															<div className="text-center p-3 bg-secondary/50 rounded-lg">
-																<div className="flex items-center justify-center text-xl font-bold">
-																	<Star className="h-4 w-4 text-yellow-500 mr-1" />
-																	{donor.rating}
+																<div className="text-right">
+																	<Badge
+																		variant="outline"
+																		className={`${getAvailabilityColor(donor.availability)} border-0`}
+																	>
+																		{donor.availability}
+																	</Badge>
 																</div>
-																<div className="text-xs text-muted-foreground">Rating</div>
 															</div>
-															<div className="text-center p-3 bg-muted/50 rounded-lg">
-																<div className="text-sm font-bold">{donor.lastDonation}</div>
-																<div className="text-xs text-muted-foreground">Last Donation</div>
+
+															<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+																<div className="text-center p-3 bg-primary/5 rounded-lg">
+																	<div className="text-xl font-bold text-primary">{donor.bloodType}</div>
+																	<div className="text-xs text-muted-foreground">Blood Type</div>
+																</div>
+																<div className="text-center p-3 bg-success/5 rounded-lg">
+																	<div className="text-xl font-bold text-success">{donor.totalDonations}</div>
+																	<div className="text-xs text-muted-foreground">Donations</div>
+																</div>
+																<div className="text-center p-3 bg-secondary/50 rounded-lg">
+																	<div className="flex items-center justify-center text-xl font-bold">
+																		<Star className="h-4 w-4 text-yellow-500 mr-1" />
+																		{donor.rating}
+																	</div>
+																	<div className="text-xs text-muted-foreground">Rating</div>
+																</div>
+																<div className="text-center p-3 bg-muted/50 rounded-lg">
+																	<div className="text-sm font-bold">{donor.lastDonation}</div>
+																	<div className="text-xs text-muted-foreground">Last Donation</div>
+																</div>
+															</div>
+
+															<div className="flex items-center space-x-4 text-sm">
+																<div className="flex items-center text-muted-foreground">
+																	<Phone className="h-4 w-4 mr-1" />
+																	{donor.phone}
+																</div>
+																<div className="flex items-center text-muted-foreground">
+																	<Mail className="h-4 w-4 mr-1" />
+																	{donor.email}
+																</div>
 															</div>
 														</div>
 
-														<div className="flex items-center space-x-4 text-sm">
-															<div className="flex items-center text-muted-foreground">
-																<Phone className="h-4 w-4 mr-1" />
-																{donor.phone}
-															</div>
-															<div className="flex items-center text-muted-foreground">
-																<Mail className="h-4 w-4 mr-1" />
-																{donor.email}
-															</div>
-														</div>
-													</div>
-
-													{/* Action Buttons */}
-													<div className="flex flex-col space-y-3">
-														<Button
-															className="w-full"
-															disabled={donor.availability === "Busy"}
-															onClick={() => handleContactDonor(donor)}
-														>
-															<BloodDropIcon size="sm" className="mr-2" />
-															Contact Donor
-														</Button>
-														<Button variant="outline" className="w-full">
-															<Navigation className="h-4 w-4 mr-2" />
-															Get Directions
-														</Button>
-														<Button variant="medical" className="w-full">
-															<Award className="h-4 w-4 mr-2" />
-															View Profile
-														</Button>
-														{donor.emergencyContact && (
-															<Button variant="destructive" className="w-full">
-																<Phone className="h-4 w-4 mr-2" />
-																Emergency Call
+														{/* Action Buttons */}
+														<div className="flex flex-col space-y-3">
+															<Button
+																className="w-full"
+																disabled={donor.availability === "Busy"}
+																onClick={() => handleContactDonor(donor)}
+															>
+																<BloodDropIcon size="sm" className="mr-2" />
+																Contact Donor
 															</Button>
-														)}
+															<Button variant="outline" className="w-full">
+																<Navigation className="h-4 w-4 mr-2" />
+																Get Directions
+															</Button>
+															<Button variant="medical" className="w-full">
+																<Award className="h-4 w-4 mr-2" />
+																View Profile
+															</Button>
+															{donor.emergencyContact && (
+																<Button variant="destructive" className="w-full">
+																	<Phone className="h-4 w-4 mr-2" />
+																	Emergency Call
+																</Button>
+															)}
+														</div>
 													</div>
-												</div>
+												</CardContent>
+											</Card>
+										))}
+									</div>
+
+									{filteredDonors.length === 0 && (
+										<Card>
+											<CardContent className="text-center py-12">
+												<Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+												<h3 className="text-lg font-semibold mb-2">No donors found</h3>
+												<p className="text-muted-foreground mb-4">
+													Try adjusting your search filters or expanding your search radius.
+												</p>
+												<Button variant="outline">
+													Expand Search Area
+												</Button>
 											</CardContent>
 										</Card>
-									))}
+									)}
 								</div>
-
-								{filteredDonors.length === 0 && (
-									<Card>
-										<CardContent className="text-center py-12">
-											<Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-											<h3 className="text-lg font-semibold mb-2">No donors found</h3>
-											<p className="text-muted-foreground mb-4">
-												Try adjusting your search filters or expanding your search radius.
-											</p>
-											<Button variant="outline">
-												Expand Search Area
-											</Button>
-										</CardContent>
-									</Card>
-								)}
-							</div>
+							)}
 						</div>
 					</div>
 				</div>
@@ -380,7 +384,7 @@ const FindDonorsPage = () => {
 							Get in touch with the blood donor for your request
 						</DialogDescription>
 					</DialogHeader>
-					
+
 					{selectedDonor && (
 						<div className="flex-1 overflow-y-auto space-y-4 pr-2">
 							{/* Donor Basic Info */}
@@ -406,7 +410,7 @@ const FindDonorsPage = () => {
 								<h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
 									Contact Information
 								</h4>
-								
+
 								{/* Phone */}
 								<div className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50">
 									<div className="flex items-center space-x-2 min-w-0 flex-1">
@@ -417,16 +421,16 @@ const FindDonorsPage = () => {
 										</div>
 									</div>
 									<div className="flex space-x-1 flex-shrink-0">
-										<Button 
-											size="sm" 
+										<Button
+											size="sm"
 											variant="outline"
 											className="h-7 w-7 p-0"
 											onClick={() => copyToClipboard(selectedDonor.phone)}
 										>
 											<Copy className="h-3 w-3" />
 										</Button>
-										<Button 
-											size="sm" 
+										<Button
+											size="sm"
 											className="h-7 px-2"
 											onClick={() => window.open(`tel:${selectedDonor.phone}`)}
 										>
@@ -445,16 +449,16 @@ const FindDonorsPage = () => {
 										</div>
 									</div>
 									<div className="flex space-x-1 flex-shrink-0">
-										<Button 
-											size="sm" 
+										<Button
+											size="sm"
 											variant="outline"
 											className="h-7 w-7 p-0"
 											onClick={() => copyToClipboard(selectedDonor.email)}
 										>
 											<Copy className="h-3 w-3" />
 										</Button>
-										<Button 
-											size="sm" 
+										<Button
+											size="sm"
 											className="h-7 px-2"
 											onClick={() => window.open(`mailto:${selectedDonor.email}`)}
 										>
@@ -472,8 +476,8 @@ const FindDonorsPage = () => {
 											<p className="text-xs text-muted-foreground truncate">{selectedDonor.location}</p>
 										</div>
 									</div>
-									<Button 
-										size="sm" 
+									<Button
+										size="sm"
 										variant="outline"
 										className="h-7 w-7 p-0 flex-shrink-0"
 										onClick={() => copyToClipboard(selectedDonor.location)}
@@ -488,7 +492,7 @@ const FindDonorsPage = () => {
 								<h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
 									Donor Information
 								</h4>
-								
+
 								<div className="grid grid-cols-2 gap-2">
 									<div className="text-center p-2 bg-muted/30 rounded-lg">
 										<div className="text-sm font-bold">{selectedDonor.totalDonations}</div>
@@ -541,15 +545,15 @@ const FindDonorsPage = () => {
 					{/* Action Buttons - Fixed at bottom */}
 					{selectedDonor && (
 						<div className="flex space-x-2 pt-3 border-t flex-shrink-0">
-							<Button 
+							<Button
 								className="flex-1 h-8 text-xs"
 								onClick={() => window.open(`tel:${selectedDonor.phone}`)}
 							>
 								<Phone className="h-3 w-3 mr-1" />
 								Call
 							</Button>
-							<Button 
-								variant="outline" 
+							<Button
+								variant="outline"
 								className="flex-1 h-8 text-xs"
 								onClick={() => window.open(`sms:${selectedDonor.phone}`)}
 							>

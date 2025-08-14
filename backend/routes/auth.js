@@ -171,9 +171,12 @@ router.post('/register', registerValidation, validate, async (req, res) => {
 		delete userResponse.password;
 
 		res.status(201).json({
+			success: true,
 			message: 'User registered successfully',
-			token,
-			user: userResponse
+			data: {
+				token,
+				user: userResponse
+			}
 		});
 	} catch (error) {
 		console.error('Registration error:', error);
@@ -208,9 +211,24 @@ router.post('/login', loginValidation, validate, async (req, res) => {
 			});
 		}
 
+		// Check if user is banned first (before checking isActive)
+		if (user.isBanned) {
+			return res.status(403).json({
+				success: false,
+				message: 'Account has been suspended',
+				isBanned: true,
+				banInfo: {
+					banReason: user.banReason,
+					bannedAt: user.bannedAt,
+					bannedBy: user.bannedBy
+				}
+			});
+		}
+
 		// Check if account is active
 		if (!user.isActive) {
 			return res.status(401).json({
+				success: false,
 				message: 'Account has been deactivated. Please contact support.'
 			});
 		}

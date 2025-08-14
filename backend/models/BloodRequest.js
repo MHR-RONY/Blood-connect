@@ -239,7 +239,8 @@ const bloodRequestSchema = new mongoose.Schema({
 // Virtual for time remaining
 bloodRequestSchema.virtual('timeRemaining').get(function () {
 	const now = new Date();
-	const required = this.bloodRequirement.requiredBy;
+	const required = this.bloodRequirement?.requiredBy;
+	if (!required) return 0;
 	const diffTime = required - now;
 	const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 	return diffDays;
@@ -247,21 +248,26 @@ bloodRequestSchema.virtual('timeRemaining').get(function () {
 
 // Virtual for units fulfilled
 bloodRequestSchema.virtual('unitsFulfilled').get(function () {
+	if (!this.acceptedDonors || !Array.isArray(this.acceptedDonors)) {
+		return 0;
+	}
 	return this.acceptedDonors.filter(donor => donor.status === 'completed').length;
 });
 
 // Virtual for completion percentage
 bloodRequestSchema.virtual('completionPercentage').get(function () {
 	const fulfilled = this.unitsFulfilled;
-	const required = this.bloodRequirement.units;
+	const required = this.bloodRequirement?.units || 1;
+	if (required === 0) return 0;
 	return Math.round((fulfilled / required) * 100);
 });
 
 // Virtual for urgency score (for sorting)
 bloodRequestSchema.virtual('urgencyScore').get(function () {
 	const urgencyWeights = { critical: 4, high: 3, medium: 2, low: 1 };
+	const urgency = this.bloodRequirement?.urgency || 'low';
 	const timeWeight = Math.max(0, 5 - this.timeRemaining); // More urgent as time decreases
-	return urgencyWeights[this.bloodRequirement.urgency] * 10 + timeWeight;
+	return (urgencyWeights[urgency] || 1) * 10 + timeWeight;
 });
 
 // Index for efficient searches

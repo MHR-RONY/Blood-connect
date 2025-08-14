@@ -42,11 +42,14 @@ app.use(cors({
 		'http://localhost:8080',  // Alternative Vite port
 		'http://localhost:8081',  // Current frontend port
 		'http://localhost:3000',  // React default port
+		'https://bloodconnect.mhrrony.com',  // Production frontend domain
+		'https://bloodconnect.vercel.app',   // Vercel domain (if any)
 		process.env.FRONTEND_URL
 	].filter(Boolean),
 	credentials: true,
-	methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-	allowedHeaders: ['Content-Type', 'Authorization']
+	methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+	allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+	exposedHeaders: ['Authorization']
 }));
 
 // Body parsing middleware

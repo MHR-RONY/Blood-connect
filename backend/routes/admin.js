@@ -1,5 +1,5 @@
 const express = require('express');
-const { query } = require('express-validator');
+const { query, body } = require('express-validator');
 const User = require('../models/User');
 const Donation = require('../models/Donation');
 const BloodRequest = require('../models/BloodRequest');
@@ -113,8 +113,9 @@ router.get('/dashboard', async (req, res) => {
 		]);
 
 		res.json({
+			success: true,
 			message: 'Admin dashboard data retrieved successfully',
-			statistics: {
+			data: {
 				overview: {
 					totalUsers,
 					activeUsers,
@@ -144,6 +145,7 @@ router.get('/dashboard', async (req, res) => {
 	} catch (error) {
 		console.error('Admin dashboard error:', error);
 		res.status(500).json({
+			success: false,
 			message: 'Failed to retrieve dashboard data',
 			error: process.env.NODE_ENV === 'development' ? error.message : undefined
 		});
@@ -162,6 +164,10 @@ router.get('/users', [
 		.optional()
 		.isBoolean()
 		.withMessage('isActive must be boolean'),
+	query('isBanned')
+		.optional()
+		.isBoolean()
+		.withMessage('isBanned must be boolean'),
 	query('bloodType')
 		.optional()
 		.isIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'])
@@ -185,6 +191,7 @@ router.get('/users', [
 		const {
 			role,
 			isActive,
+			isBanned,
 			bloodType,
 			city,
 			search,
@@ -203,6 +210,10 @@ router.get('/users', [
 
 		if (isActive !== undefined) {
 			searchQuery.isActive = isActive === 'true';
+		}
+
+		if (isBanned !== undefined) {
+			searchQuery.isBanned = isBanned === 'true';
 		}
 
 		if (bloodType) {
@@ -232,6 +243,7 @@ router.get('/users', [
 		// Execute search
 		const users = await User.find(searchQuery)
 			.select('-password')
+			.populate('bannedBy', 'firstName lastName email')
 			.sort(sort)
 			.skip(skip)
 			.limit(parseInt(limit));
@@ -240,18 +252,22 @@ router.get('/users', [
 		const total = await User.countDocuments(searchQuery);
 
 		res.json({
+			success: true,
 			message: 'Users retrieved successfully',
-			users,
-			pagination: {
-				currentPage: parseInt(page),
-				totalPages: Math.ceil(total / parseInt(limit)),
-				totalItems: total,
-				itemsPerPage: parseInt(limit)
+			data: {
+				users,
+				pagination: {
+					page: parseInt(page),
+					limit: parseInt(limit),
+					total: total,
+					pages: Math.ceil(total / parseInt(limit))
+				}
 			}
 		});
 	} catch (error) {
 		console.error('Get users error:', error);
 		res.status(500).json({
+			success: false,
 			message: 'Failed to retrieve users',
 			error: process.env.NODE_ENV === 'development' ? error.message : undefined
 		});
@@ -762,6 +778,455 @@ router.get('/analytics', async (req, res) => {
 		console.error('Get analytics error:', error);
 		res.status(500).json({
 			message: 'Failed to retrieve analytics data',
+			error: process.env.NODE_ENV === 'development' ? error.message : undefined
+		});
+	}
+});
+
+// @route   PUT /api/admin/change-password
+// @desc    Change admin password
+// @access  Admin only
+router.put('/change-password', [
+	body('currentPassword')
+		.notEmpty()
+		.withMessage('Current password is required'),
+	body('newPassword')
+		.isLength({ min: 6 })
+		.withMessage('New password must be at least 6 characters long')
+		.matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+		.withMessage('New password must contain at least one uppercase letter, one lowercase letter, and one number'),
+	body('confirmPassword')
+		.custom((value, { req }) => {
+			if (value !== req.body.newPassword) {
+				throw new Error('Password confirmation does not match');
+			}
+			return true;
+		})
+], validate, async (req, res) => {
+	try {
+		const { currentPassword, newPassword } = req.body;
+		const userId = req.user.id;
+
+		// Get current user with password
+		const user = await User.findById(userId).select('+password');
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: 'User not found'
+			});
+		}
+
+		// Verify current password
+		const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+		if (!isCurrentPasswordValid) {
+			return res.status(400).json({
+				success: false,
+				message: 'Current password is incorrect'
+			});
+		}
+
+		// Update password
+		user.password = newPassword;
+		await user.save();
+
+		res.json({
+			success: true,
+			message: 'Password changed successfully'
+		});
+
+	} catch (error) {
+		console.error('Change password error:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to change password',
+			error: process.env.NODE_ENV === 'development' ? error.message : undefined
+		});
+	}
+});
+
+// @route   GET /api/admin/users/:id
+// @desc    Get detailed user information
+// @access  Admin only
+router.get('/users/:id', async (req, res) => {
+	try {
+		const { id } = req.params;
+
+		const user = await User.findById(id)
+			.populate('bannedBy', 'firstName lastName email')
+			.select('-password');
+
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: 'User not found'
+			});
+		}
+
+		// Get user's donation history
+		const donations = await Donation.find({ donor: id })
+			.populate('request', 'patient.bloodType')
+			.sort({ createdAt: -1 })
+			.limit(10);
+
+		// Get user's blood requests
+		const requests = await BloodRequest.find({ requester: id })
+			.sort({ createdAt: -1 })
+			.limit(10);
+
+		// Get user's emergency requests
+		const emergencyRequests = await EmergencyRequest.find({ requester: id })
+			.sort({ createdAt: -1 })
+			.limit(5);
+
+		res.json({
+			success: true,
+			data: {
+				user,
+				donations,
+				requests,
+				emergencyRequests,
+				stats: {
+					donationCount: user.donationCount || 0,
+					requestCount: requests.length,
+					emergencyCount: emergencyRequests.length
+				}
+			}
+		});
+
+	} catch (error) {
+		console.error('Get user details error:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to get user details',
+			error: process.env.NODE_ENV === 'development' ? error.message : undefined
+		});
+	}
+});
+
+// @route   PUT /api/admin/users/:id/ban
+// @desc    Ban or unban a user
+// @access  Admin only
+router.put('/users/:id/ban', async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { isBanned, banReason } = req.body;
+
+		if (typeof isBanned !== 'boolean') {
+			return res.status(400).json({
+				success: false,
+				message: 'isBanned field is required and must be boolean'
+			});
+		}
+
+		if (isBanned && !banReason) {
+			return res.status(400).json({
+				success: false,
+				message: 'Ban reason is required when banning a user'
+			});
+		}
+
+		const user = await User.findById(id);
+
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: 'User not found'
+			});
+		}
+
+		// Prevent banning other admins
+		if (user.role === 'admin' && isBanned) {
+			return res.status(403).json({
+				success: false,
+				message: 'Cannot ban admin users'
+			});
+		}
+
+		// Prevent self-ban
+		if (user._id.toString() === req.user._id.toString() && isBanned) {
+			return res.status(400).json({
+				success: false,
+				message: 'Cannot ban yourself'
+			});
+		}
+
+		// Update ban status
+		user.isBanned = isBanned;
+		user.banReason = isBanned ? banReason : null;
+		user.bannedBy = isBanned ? req.user._id : null;
+		user.bannedAt = isBanned ? new Date() : null;
+
+		// If banned, deactivate; if unbanned, reactivate
+		user.isActive = !isBanned;
+
+		await user.save();
+
+		// Log the action
+		console.log(`Admin ${req.user.email} ${isBanned ? 'banned' : 'unbanned'} user ${user.email}. Reason: ${banReason || 'Not provided'}`);
+
+		res.json({
+			success: true,
+			message: `User ${isBanned ? 'banned' : 'unbanned'} successfully`,
+			data: {
+				user: {
+					_id: user._id,
+					firstName: user.firstName,
+					lastName: user.lastName,
+					email: user.email,
+					isActive: user.isActive,
+					isBanned: user.isBanned,
+					banReason: user.banReason,
+					bannedAt: user.bannedAt
+				}
+			}
+		});
+
+	} catch (error) {
+		console.error('Ban/unban user error:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to update user ban status',
+			error: process.env.NODE_ENV === 'development' ? error.message : undefined
+		});
+	}
+});
+
+// @route   GET /api/admin/donors
+// @desc    Get all donors with statistics
+// @access  Admin only
+router.get('/donors', [
+	query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+	query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
+	query('search').optional().isString().trim().isLength({ max: 50 }).withMessage('Search term too long'),
+	query('bloodType').optional().isIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']).withMessage('Invalid blood type'),
+	query('status').optional().isIn(['Available', 'Unavailable']).withMessage('Invalid status'),
+	query('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
+	validate
+], async (req, res) => {
+	try {
+		const {
+			page = 1,
+			limit = 10,
+			search,
+			bloodType,
+			status,
+			isActive
+		} = req.query;
+
+		const skip = (parseInt(page) - 1) * parseInt(limit);
+
+		// Build search query
+		let searchQuery = {};
+
+		// Add search functionality (name, email, phone)
+		if (search) {
+			searchQuery.$or = [
+				{ firstName: { $regex: search, $options: 'i' } },
+				{ lastName: { $regex: search, $options: 'i' } },
+				{ email: { $regex: search, $options: 'i' } },
+				{ phone: { $regex: search, $options: 'i' } }
+			];
+		}
+
+		// Filter by blood type
+		if (bloodType) {
+			searchQuery.bloodType = bloodType;
+		}
+
+		// Filter by active status
+		if (isActive !== undefined) {
+			searchQuery.isActive = isActive === 'true';
+		}
+
+		// Filter by availability status
+		if (status) {
+			if (status === 'Available') {
+				searchQuery.isAvailableDonor = true;
+				searchQuery.isActive = true;
+			} else if (status === 'Unavailable') {
+				searchQuery.$or = [
+					{ isAvailableDonor: false },
+					{ isActive: false }
+				];
+			}
+		}
+
+		// Get total count for pagination
+		const total = await User.countDocuments(searchQuery);
+
+		// Get donors with their donation counts
+		const donors = await User.aggregate([
+			{ $match: searchQuery },
+			{
+				$lookup: {
+					from: 'hospitaldonations',
+					localField: '_id',
+					foreignField: 'user',
+					as: 'hospitalDonations'
+				}
+			},
+			{
+				$lookup: {
+					from: 'donations',
+					localField: '_id',
+					foreignField: 'donor',
+					as: 'donations'
+				}
+			},
+			{
+				$addFields: {
+					totalDonations: {
+						$add: [
+							{ $size: '$hospitalDonations' },
+							{ $size: '$donations' }
+						]
+					},
+					donationCount: {
+						$add: [
+							{ $size: '$hospitalDonations' },
+							{ $size: '$donations' }
+						]
+					}
+				}
+			},
+			{
+				$project: {
+					firstName: 1,
+					lastName: 1,
+					email: 1,
+					phone: 1,
+					bloodType: 1,
+					location: 1,
+					isAvailableDonor: 1,
+					isActive: 1,
+					isVerified: 1,
+					createdAt: 1,
+					lastLogin: 1,
+					totalDonations: 1,
+					donationCount: 1,
+					status: {
+						$cond: {
+							if: { $and: ['$isActive', '$isAvailableDonor'] },
+							then: 'Available',
+							else: 'Unavailable'
+						}
+					}
+				}
+			},
+			{ $sort: { createdAt: -1 } },
+			{ $skip: skip },
+			{ $limit: parseInt(limit) }
+		]);
+
+		// Get blood type statistics
+		const bloodTypeStats = await User.aggregate([
+			{
+				$match: {
+					isActive: true,
+					isAvailableDonor: true
+				}
+			},
+			{
+				$group: {
+					_id: '$bloodType',
+					count: { $sum: 1 }
+				}
+			}
+		]);
+
+		// Initialize all blood types with 0 count
+		const allBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+		const bloodTypeStatsObject = {};
+
+		// Set all blood types to 0 initially
+		allBloodTypes.forEach(bloodType => {
+			bloodTypeStatsObject[bloodType] = 0;
+		});
+
+		// Update with actual counts
+		bloodTypeStats.forEach(stat => {
+			if (stat._id && allBloodTypes.includes(stat._id)) {
+				bloodTypeStatsObject[stat._id] = stat.count;
+			}
+		});
+
+		// Calculate pagination info
+		const totalPages = Math.ceil(total / parseInt(limit));
+
+		res.json({
+			success: true,
+			data: {
+				donors,
+				total,
+				page: parseInt(page),
+				totalPages,
+				bloodTypeStats: bloodTypeStatsObject
+			}
+		});
+
+	} catch (error) {
+		console.error('Get donors error:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to fetch donors',
+			error: process.env.NODE_ENV === 'development' ? error.message : undefined
+		});
+	}
+});
+
+// @route   GET /api/admin/donors/:id
+// @desc    Get donor details with donation history
+// @access  Admin only
+router.get('/donors/:id', async (req, res) => {
+	try {
+		const { id } = req.params;
+
+		// Get donor details
+		const donor = await User.findById(id)
+			.select('-password -resetPasswordToken -resetPasswordExpires -verificationToken');
+
+		if (!donor) {
+			return res.status(404).json({
+				success: false,
+				message: 'Donor not found'
+			});
+		}
+
+		// Get donations and hospital donations
+		const [donations, hospitalDonations] = await Promise.all([
+			Donation.find({ donor: id })
+				.populate('request', 'patient.bloodType patient.name createdAt')
+				.sort({ createdAt: -1 }),
+			require('../models/HospitalDonation').find({ user: id })
+				.sort({ createdAt: -1 })
+		]);
+
+		// Calculate stats
+		const stats = {
+			totalDonations: donations.length + hospitalDonations.length,
+			hospitalDonations: hospitalDonations.length,
+			availableDonorRegistrations: donor.isAvailableDonor ? 1 : 0
+		};
+
+		res.json({
+			success: true,
+			data: {
+				donor: {
+					...donor.toObject(),
+					totalDonations: stats.totalDonations,
+					status: donor.isActive && donor.isAvailableDonor ? 'Available' : 'Unavailable'
+				},
+				donations,
+				hospitalDonations,
+				stats
+			}
+		});
+
+	} catch (error) {
+		console.error('Get donor details error:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to fetch donor details',
 			error: process.env.NODE_ENV === 'development' ? error.message : undefined
 		});
 	}

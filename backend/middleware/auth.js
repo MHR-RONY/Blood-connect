@@ -17,7 +17,22 @@ const authenticate = async (req, res, next) => {
 		}
 
 		if (!user.isActive) {
-			return res.status(401).json({ message: 'Account has been deactivated.' });
+			return res.status(401).json({
+				success: false,
+				message: 'Account has been deactivated.'
+			});
+		}
+
+		if (user.isBanned) {
+			return res.status(403).json({
+				success: false,
+				message: 'Account has been suspended',
+				isBanned: true,
+				banInfo: {
+					banReason: user.banReason,
+					bannedAt: user.bannedAt
+				}
+			});
 		}
 
 		req.user = user;

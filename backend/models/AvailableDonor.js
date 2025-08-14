@@ -107,17 +107,17 @@ const availableDonorSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient queries
-availableDonorSchema.index({ userId: 1 });
+// Note: userId already has unique index from schema definition
 availableDonorSchema.index({ 'bloodInfo.bloodType': 1 });
 availableDonorSchema.index({ 'donorInfo.city': 1 });
 availableDonorSchema.index({ isActive: 1 });
 availableDonorSchema.index({ registeredAt: -1 });
 
 // Compound index for blood type and city filtering
-availableDonorSchema.index({ 
-	'bloodInfo.bloodType': 1, 
-	'donorInfo.city': 1, 
-	isActive: 1 
+availableDonorSchema.index({
+	'bloodInfo.bloodType': 1,
+	'donorInfo.city': 1,
+	isActive: 1
 });
 
 module.exports = mongoose.model('AvailableDonor', availableDonorSchema);

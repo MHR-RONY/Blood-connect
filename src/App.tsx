@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminProtectedRoute from "@/components/AdminProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
@@ -33,6 +34,8 @@ import Emergency from "./pages/Emergency";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import MedicalDisclaimer from "./pages/MedicalDisclaimer";
+import AdminLogin from "./pages/AdminLogin";
+import BannedUser from "./pages/BannedUser";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +63,14 @@ const App = () => (
 								element={
 									<ProtectedRoute requireAuth={false}>
 										<Login />
+									</ProtectedRoute>
+								}
+							/>
+							<Route
+								path="/admin/login"
+								element={
+									<ProtectedRoute requireAuth={false}>
+										<AdminLogin />
 									</ProtectedRoute>
 								}
 							/>
@@ -126,9 +137,9 @@ const App = () => (
 							<Route
 								path="/admin"
 								element={
-									<ProtectedRoute>
+									<AdminProtectedRoute>
 										<AdminLayout />
-									</ProtectedRoute>
+									</AdminProtectedRoute>
 								}
 							>
 								<Route index element={<AdminDashboard />} />
@@ -142,6 +153,7 @@ const App = () => (
 							</Route>
 
 							{/* Static Pages - Public */}
+							<Route path="/banned" element={<BannedUser />} />
 							<Route path="/help-center" element={<HelpCenter />} />
 							<Route path="/contact-us" element={<ContactUs />} />
 							<Route path="/emergency-info" element={<Emergency />} />

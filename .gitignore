@@ -19,6 +19,9 @@ build/
 .env.test.local
 .env.production.local
 
+# Don't ignore these production environment files
+!.env.production
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -181,19 +181,24 @@ const SignUp = () => {
 			const response = await authApi.signUp(apiData);
 
 			if (response.success && response.data) {
-				// Store token and login user
-				login(response.data.token, response.data.user);
-
-				// Success notification
+				// Success notification first
 				toast({
 					title: "Account Created Successfully! 🎉",
 					description: `Welcome to Blood Connect, ${formData.firstName}! Your account has been created and you're now logged in.`,
 				});
 
-				// Redirect to dashboard
-				setTimeout(() => {
-					navigate('/dashboard');
-				}, 1500);
+				// Store token and login user - this will trigger auth state change
+				login(response.data.token, response.data.user);
+
+				// Force immediate navigation to home page
+				navigate('/', { replace: true });
+			} else {
+				// Handle case where response doesn't have expected structure
+				toast({
+					title: "Registration Error",
+					description: "Account creation failed. Please try again.",
+					variant: "destructive",
+				});
 			}
 
 		} catch (error) {
