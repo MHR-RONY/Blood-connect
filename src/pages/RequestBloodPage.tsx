@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -16,8 +17,13 @@ import BloodTypeSelector from "@/components/BloodTypeSelector";
 import LocationSelector from "@/components/LocationSelector";
 import BloodDropIcon from "@/components/BloodDropIcon";
 import { cn } from "@/lib/utils";
+import { bloodRequestAPI, BloodRequestData } from "@/services/bloodRequestAPI";
+import { useToast } from "@/hooks/use-toast";
 
 const RequestBloodPage = () => {
+	const navigate = useNavigate();
+	const { toast } = useToast();
+
 	const [formData, setFormData] = useState({
 		bloodType: "",
 		urgency: "",
@@ -35,10 +41,126 @@ const RequestBloodPage = () => {
 		additionalNotes: ""
 	});
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		console.log("Blood request submitted:", formData);
-		// Here you would send the data to your backend
+
+		// Validation
+		if (!formData.bloodType || !formData.urgency || !formData.unitsNeeded || !formData.requiredBy ||
+			!formData.patientName || !formData.patientAge || !formData.hospitalName || !formData.doctorName ||
+			!formData.contactName || !formData.contactPhone || !formData.location.city || !formData.location.area) {
+			toast({
+				title: "Missing Information",
+				description: "Please fill in all required fields including location",
+				variant: "destructive",
+			});
+			return;
+		}
+
+		// Validate phone number format (basic validation)
+		const phoneRegex = /^(\+88)?0?1[3-9]\d{8}$/;
+		if (!phoneRegex.test(formData.contactPhone)) {
+			toast({
+				title: "Invalid Phone Number",
+				description: "Please enter a valid Bangladeshi mobile number (e.g., 01712345678 or +8801712345678)",
+				variant: "destructive",
+			});
+			return;
+		}
+
+		setIsSubmitting(true);
+
+		try {
+			// Ensure phone number has proper format
+			let phoneNumber = formData.contactPhone;
+			if (!phoneNumber.startsWith('+88')) {
+				if (phoneNumber.startsWith('0')) {
+					phoneNumber = '+88' + phoneNumber;
+				} else if (phoneNumber.startsWith('1')) {
+					phoneNumber = '+880' + phoneNumber;
+				} else {
+					phoneNumber = '+88' + phoneNumber;
+				}
+			}
+
+			// Prepare data according to the API schema
+			const requestData: BloodRequestData = {
+				patient: {
+					name: formData.patientName,
+					age: parseInt(formData.patientAge),
+					gender: 'other', // Default to 'other' since we don't have gender selection
+					bloodType: formData.bloodType,
+					contactNumber: phoneNumber,
+					relationship: 'self' // Default to 'self' since we don't have relationship selection
+				},
+				hospital: {
+					name: formData.hospitalName,
+					address: `${formData.location.area}, ${formData.location.city}`,
+					city: formData.location.city,
+					area: formData.location.area,
+					contactNumber: phoneNumber, // Using same contact for now
+					doctorName: formData.doctorName
+				},
+				bloodRequirement: {
+					units: parseInt(formData.unitsNeeded),
+					urgency: formData.urgency as 'low' | 'medium' | 'high' | 'critical',
+					requiredBy: formData.requiredBy!.toISOString(),
+					purpose: 'other' // Use 'other' as default since it's in the validation list
+				},
+				additionalNotes: formData.additionalNotes || formData.medicalCondition
+			};
+
+			console.log("Submitting blood request:", requestData);
+
+			const result = await bloodRequestAPI.create(requestData);
+
+			if (result.success) {
+				toast({
+					title: "Request Submitted Successfully",
+					description: "Your blood request has been submitted. You can track its status in your profile.",
+				});
+
+				// Reset form
+				setFormData({
+					bloodType: "",
+					urgency: "",
+					unitsNeeded: "",
+					requiredBy: undefined,
+					patientName: "",
+					patientAge: "",
+					medicalCondition: "",
+					hospitalName: "",
+					doctorName: "",
+					contactName: "",
+					contactPhone: "",
+					contactEmail: "",
+					location: { city: "", area: "" },
+					additionalNotes: ""
+				});
+
+				// Navigate to profile page to see the request
+				setTimeout(() => {
+					navigate('/profile');
+				}, 2000);
+
+			} else {
+				toast({
+					title: "Submission Failed",
+					description: result.error || "Failed to submit blood request. Please try again.",
+					variant: "destructive",
+				});
+			}
+		} catch (error) {
+			console.error("Error submitting blood request:", error);
+			toast({
+				title: "Error",
+				description: "An unexpected error occurred. Please try again.",
+				variant: "destructive",
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	const handleLocationChange = (location: { city: string; area: string; coordinates?: { lat: number; lng: number } }) => {
@@ -356,8 +478,14 @@ const RequestBloodPage = () => {
 										size="lg"
 										className="w-full md:w-auto px-12"
 										variant={formData.urgency === "critical" ? "emergency" : "default"}
+										disabled={isSubmitting}
 									>
-										{formData.urgency === "critical" ? (
+										{isSubmitting ? (
+											<>
+												<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+												Submitting...
+											</>
+										) : formData.urgency === "critical" ? (
 											<>
 												<AlertTriangle className="h-4 w-4 mr-2" />
 												Submit Critical Request

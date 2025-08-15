@@ -69,6 +69,8 @@ router.post('/', [
 	validate
 ], async (req, res) => {
 	try {
+		console.log('Received blood request data:', JSON.stringify(req.body, null, 2));
+
 		const requestData = {
 			...req.body,
 			requester: req.user._id,

@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { hospitalDonationAPI, availableDonorAPI } from "@/services/donationAPI";
+import { bloodRequestAPI, BloodRequest } from "@/services/bloodRequestAPI";
 import BloodLoading from "@/components/ui/blood-loading";
 import {
 	User,
@@ -37,6 +38,8 @@ const Profile = () => {
 	const [isEditing, setIsEditing] = useState(false);
 	const [donationHistory, setDonationHistory] = useState([]);
 	const [loadingDonations, setLoadingDonations] = useState(false);
+	const [bloodRequests, setBloodRequests] = useState<BloodRequest[]>([]);
+	const [loadingRequests, setLoadingRequests] = useState(false);
 	const [profileData, setProfileData] = useState({
 		name: "",
 		email: "",
@@ -143,26 +146,30 @@ const Profile = () => {
 		fetchDonationHistory();
 	}, [user]);
 
-	const bloodRequests = [
-		{
-			id: 1,
-			date: "2024-02-01",
-			bloodType: "O+",
-			units: 2,
-			hospital: "General Hospital",
-			status: "Fulfilled",
-			urgency: "High"
-		},
-		{
-			id: 2,
-			date: "2024-01-20",
-			bloodType: "O+",
-			units: 1,
-			hospital: "Children's Hospital",
-			status: "Pending",
-			urgency: "Critical"
-		}
-	];
+	// Fetch blood requests from API
+	useEffect(() => {
+		const fetchBloodRequests = async () => {
+			if (!user) return;
+
+			setLoadingRequests(true);
+			try {
+				const result = await bloodRequestAPI.getUserRequests();
+				if (result.success) {
+					setBloodRequests(result.data || []);
+				} else {
+					console.error('Failed to fetch blood requests:', result.error);
+					setBloodRequests([]);
+				}
+			} catch (error) {
+				console.error('Error fetching blood requests:', error);
+				setBloodRequests([]);
+			} finally {
+				setLoadingRequests(false);
+			}
+		};
+
+		fetchBloodRequests();
+	}, [user]);
 
 	const moneyDonations = [
 		{
@@ -543,36 +550,53 @@ const Profile = () => {
 										</CardDescription>
 									</CardHeader>
 									<CardContent>
-										<div className="space-y-4">
-											{bloodRequests.map((request) => (
-												<div key={request.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-													<div className="flex items-center space-x-4">
-														<div className="bg-emergency/10 p-2 rounded-full">
-															<Droplets className="h-4 w-4 text-emergency" />
-														</div>
-														<div>
-															<div className="font-medium">{request.date}</div>
-															<div className="text-sm text-muted-foreground">
-																{request.hospital} • {request.units} unit(s)
+										{loadingRequests ? (
+											<div className="flex justify-center py-8">
+												<BloodLoading />
+											</div>
+										) : bloodRequests.length === 0 ? (
+											<div className="text-center py-8 text-muted-foreground">
+												<AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+												<p>No blood requests found</p>
+												<p className="text-sm">Your blood request history will appear here</p>
+											</div>
+										) : (
+											<div className="space-y-4">
+												{bloodRequests.map((request) => (
+													<div key={request._id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+														<div className="flex items-center space-x-4">
+															<div className="bg-emergency/10 p-2 rounded-full">
+																<Droplets className="h-4 w-4 text-emergency" />
+															</div>
+															<div>
+																<div className="font-medium">
+																	{new Date(request.createdAt).toLocaleDateString()}
+																</div>
+																<div className="text-sm text-muted-foreground">
+																	{request.hospital.name} • {request.bloodRequirement.units} unit(s)
+																</div>
+																<div className="text-sm text-muted-foreground">
+																	Patient: {request.patient.name}
+																</div>
 															</div>
 														</div>
-													</div>
-													<div className="text-right space-y-1">
-														<div className="flex gap-2">
-															<Badge variant="outline">
-																{request.bloodType}
-															</Badge>
-															<Badge variant={getUrgencyColor(request.urgency)}>
-																{request.urgency}
+														<div className="text-right space-y-1">
+															<div className="flex gap-2">
+																<Badge variant="outline">
+																	{request.patient.bloodType}
+																</Badge>
+																<Badge variant={getUrgencyColor(request.bloodRequirement.urgency)}>
+																	{request.bloodRequirement.urgency}
+																</Badge>
+															</div>
+															<Badge variant={getStatusColor(request.status)}>
+																{request.status}
 															</Badge>
 														</div>
-														<Badge variant={getStatusColor(request.status)}>
-															{request.status}
-														</Badge>
 													</div>
-												</div>
-											))}
-										</div>
+												))}
+											</div>
+										)}
 									</CardContent>
 								</Card>
 							</TabsContent>
