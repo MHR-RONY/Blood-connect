@@ -115,3 +115,21 @@ firestore-debug.log
 
 # Local development
 .cache/
+
+# Test and debug files
+*test*.js
+*debug*.js
+test-*.js
+debug-*.js
+*.test.*
+*.spec.*
+
+# Development scripts and utilities
+scripts/
+utils/dev/
+tools/dev/
+
+# Development documentation
+ADMIN_SETUP.md
+DEPLOYMENT_CHECKLIST.md
+DEVELOPMENT.md
