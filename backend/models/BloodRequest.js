@@ -363,15 +363,16 @@ bloodRequestSchema.methods.isExpired = function () {
 
 // Static method to get compatible requests for a blood type
 bloodRequestSchema.statics.getCompatibleRequests = function (donorBloodType) {
+	// This returns blood types that the donor can donate TO (recipients)
 	const compatibility = {
-		'O-': ['O-'],
-		'O+': ['O-', 'O+'],
-		'A-': ['A-', 'AB-'],
-		'A+': ['A-', 'A+', 'AB-', 'AB+'],
-		'B-': ['B-', 'AB-'],
-		'B+': ['B-', 'B+', 'AB-', 'AB+'],
-		'AB-': ['AB-'],
-		'AB+': ['A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']
+		'O-': ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'], // Universal donor
+		'O+': ['O+', 'A+', 'B+', 'AB+'],
+		'A-': ['A-', 'A+', 'AB-', 'AB+'],
+		'A+': ['A+', 'AB+'],
+		'B-': ['B-', 'B+', 'AB-', 'AB+'],
+		'B+': ['B+', 'AB+'],
+		'AB-': ['AB-', 'AB+'],
+		'AB+': ['AB+']
 	};
 
 	return compatibility[donorBloodType] || [];
