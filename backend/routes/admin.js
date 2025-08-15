@@ -1,5 +1,5 @@
 const express = require('express');
-const { query, body } = require('express-validator');
+const { query, body, param } = require('express-validator');
 const User = require('../models/User');
 const Donation = require('../models/Donation');
 const BloodRequest = require('../models/BloodRequest');
@@ -537,6 +537,65 @@ router.get('/requests', [
 		console.error('Get admin requests error:', error);
 		res.status(500).json({
 			message: 'Failed to retrieve blood requests',
+			error: process.env.NODE_ENV === 'development' ? error.message : undefined
+		});
+	}
+});
+
+// @route   PATCH /api/admin/requests/:id/status
+// @desc    Update blood request status (fulfill/decline)
+// @access  Admin only
+router.patch('/requests/:id/status', [
+	param('id')
+		.isMongoId()
+		.withMessage('Invalid request ID'),
+	body('status')
+		.isIn(['fulfilled', 'cancelled', 'partially-fulfilled'])
+		.withMessage('Status must be fulfilled, cancelled, or partially-fulfilled'),
+	body('adminMessage')
+		.optional()
+		.trim()
+		.isLength({ max: 500 })
+		.withMessage('Admin message must be less than 500 characters'),
+	body('adminNotes')
+		.optional()
+		.trim()
+		.isLength({ max: 1000 })
+		.withMessage('Admin notes must be less than 1000 characters'),
+	validate
+], async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { status, adminMessage, adminNotes } = req.body;
+
+		const bloodRequest = await BloodRequest.findById(id);
+		if (!bloodRequest) {
+			return res.status(404).json({
+				message: 'Blood request not found'
+			});
+		}
+
+		// Update request status and admin info
+		bloodRequest.status = status;
+		bloodRequest.adminMessage = adminMessage;
+		bloodRequest.adminNotes = adminNotes;
+		bloodRequest.processedBy = req.user._id;
+		bloodRequest.processedAt = new Date();
+
+		await bloodRequest.save();
+
+		// Populate requester info for response
+		await bloodRequest.populate('requester', 'firstName lastName email phone');
+		await bloodRequest.populate('processedBy', 'firstName lastName email');
+
+		res.json({
+			message: `Blood request ${status} successfully`,
+			request: bloodRequest
+		});
+	} catch (error) {
+		console.error('Update blood request status error:', error);
+		res.status(500).json({
+			message: 'Failed to update blood request status',
 			error: process.env.NODE_ENV === 'development' ? error.message : undefined
 		});
 	}

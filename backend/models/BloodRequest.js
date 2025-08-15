@@ -229,6 +229,22 @@ const bloodRequestSchema = new mongoose.Schema({
 	expiresAt: {
 		type: Date,
 		index: { expireAfterSeconds: 0 }
+	},
+	// Admin fields for processing requests
+	adminMessage: {
+		type: String,
+		maxlength: [500, 'Admin message cannot exceed 500 characters']
+	},
+	adminNotes: {
+		type: String,
+		maxlength: [1000, 'Admin notes cannot exceed 1000 characters']
+	},
+	processedBy: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'User'
+	},
+	processedAt: {
+		type: Date
 	}
 }, {
 	timestamps: true,
