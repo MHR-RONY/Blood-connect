@@ -27,5 +27,8 @@
         }
       ]
     }
-  ]
+  ],
+  "env": {
+    "VITE_API_BASE_URL": "https://api.bloodconnect.mhrrony.com/api"
+  }
 }

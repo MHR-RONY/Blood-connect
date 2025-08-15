@@ -49,6 +49,7 @@ app.use(cors({
 		'http://localhost:3000',  // React default port
 		'https://bloodconnect.mhrrony.com',  // Production frontend domain
 		'https://bloodconnect.vercel.app',   // Vercel domain (if any)
+		'https://blood-connect.vercel.app',  // Alternative Vercel domain
 		process.env.FRONTEND_URL
 	].filter(Boolean),
 	credentials: true,
