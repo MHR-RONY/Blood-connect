@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { authApi, ApiError } from "@/services/api";
 import Header from "@/components/Header";
 import BloodDropIcon from "@/components/BloodDropIcon";
+import BloodDropLoader from "@/components/BloodDropLoader";
 
 const Login = () => {
 	const navigate = useNavigate();
@@ -69,6 +70,10 @@ const Login = () => {
 				return;
 			}
 
+			// Ensure loading animation is visible for at least 1.5 seconds
+			const startTime = Date.now();
+			const minLoadingTime = 1500; // 1.5 seconds
+
 			// Attempt login
 			const response = await authApi.signIn(
 				formData.email.toLowerCase().trim(),
@@ -84,14 +89,27 @@ const Login = () => {
 					description: `Welcome back, ${response.data.user.firstName}!`,
 				});
 
-				// Redirect to index page after successful login
+				// Calculate remaining time to show loading animation
+				const elapsedTime = Date.now() - startTime;
+				const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
+
+				// Ensure loading is visible for at least 1.5 seconds
 				setTimeout(() => {
+					setIsSubmitting(false);
 					navigate('/', { replace: true });
-				}, 1000);
+				}, remainingTime);
 			}
 
 		} catch (error) {
 			console.error('Login error:', error);
+
+			// Ensure loading animation was visible for at least 1.5 seconds even on error
+			const elapsedTime = Date.now() - (Date.now() - 1500);
+			const remainingTime = Math.max(0, 1500 - elapsedTime);
+
+			setTimeout(() => {
+				setIsSubmitting(false);
+			}, remainingTime);
 
 			if (error instanceof ApiError) {
 				// Check if user is banned
@@ -110,7 +128,6 @@ const Login = () => {
 						navigate('/banned', { replace: true });
 					}, 2000);
 
-					setIsSubmitting(false);
 					return;
 				}
 
@@ -143,8 +160,6 @@ const Login = () => {
 					variant: "destructive",
 				});
 			}
-		} finally {
-			setIsSubmitting(false);
 		}
 	};
 
@@ -231,8 +246,12 @@ const Login = () => {
 									</Link>
 								</div>
 
-								<Button type="submit" className="w-full" size="lg">
-									Sign In
+								<Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+									{isSubmitting ? (
+										<BloodDropLoader size="sm" text="Signing in..." />
+									) : (
+										"Sign In"
+									)}
 								</Button>
 
 								<div className="text-center text-sm text-muted-foreground">

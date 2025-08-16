@@ -13,6 +13,7 @@ import BloodTypeSelector from "@/components/BloodTypeSelector";
 import LocationSelector from "@/components/LocationSelector";
 import Header from "@/components/Header";
 import BloodDropIcon from "@/components/BloodDropIcon";
+import BloodDropLoader from "@/components/BloodDropLoader";
 import { validateSignUpForm, formatPhoneNumber, sanitizeInput } from "@/utils/validation";
 import { authApi, tokenStorage, ApiError } from "@/services/api";
 import type { SignUpFormData } from "@/utils/validation";
@@ -162,6 +163,10 @@ const SignUp = () => {
 				return;
 			}
 
+			// Ensure loading animation is visible for at least 1.5 seconds
+			const startTime = Date.now();
+			const minLoadingTime = 1500; // 1.5 seconds
+
 			// Prepare data for API
 			const apiData = {
 				firstName: formData.firstName.trim(),
@@ -190,10 +195,24 @@ const SignUp = () => {
 				// Store token and login user - this will trigger auth state change
 				login(response.data.token, response.data.user);
 
-				// Force immediate navigation to home page
-				navigate('/', { replace: true });
+				// Calculate remaining time to show loading animation
+				const elapsedTime = Date.now() - startTime;
+				const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
+
+				// Ensure loading is visible for at least 1.5 seconds
+				setTimeout(() => {
+					setIsSubmitting(false);
+					navigate('/', { replace: true });
+				}, remainingTime);
 			} else {
 				// Handle case where response doesn't have expected structure
+				const elapsedTime = Date.now() - startTime;
+				const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
+
+				setTimeout(() => {
+					setIsSubmitting(false);
+				}, remainingTime);
+
 				toast({
 					title: "Registration Error",
 					description: "Account creation failed. Please try again.",
@@ -203,6 +222,14 @@ const SignUp = () => {
 
 		} catch (error) {
 			console.error('Signup error:', error);
+
+			// Ensure loading animation was visible for at least 1.5 seconds even on error
+			const elapsedTime = Date.now() - (Date.now() - 1500);
+			const remainingTime = Math.max(0, 1500 - elapsedTime);
+
+			setTimeout(() => {
+				setIsSubmitting(false);
+			}, remainingTime);
 
 			if (error instanceof ApiError) {
 				if (error.errors && error.errors.length > 0) {
@@ -228,8 +255,6 @@ const SignUp = () => {
 					variant: "destructive",
 				});
 			}
-		} finally {
-			setIsSubmitting(false);
 		}
 	};
 
@@ -572,10 +597,7 @@ const SignUp = () => {
 									disabled={isSubmitting || !formData.agreedToTerms || emailExists}
 								>
 									{isSubmitting ? (
-										<>
-											<Loader2 className="mr-2 h-5 w-5 animate-spin" />
-											Creating Account...
-										</>
+										<BloodDropLoader size="sm" text="Creating Account..." />
 									) : (
 										'Create Account'
 									)}
