@@ -101,7 +101,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 		}
 	}, [isOpen, userId, fetchUserDetails]);
 
-	const handleBanUser = async (banReason: string) => {
+	const handleBanConfirm = async (banReason: string) => {
 		if (!user) return;
 
 		const isBanned = !user.isBanned;
@@ -117,8 +117,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 				const updatedUser = { ...user, ...response.data.user };
 				setUser(updatedUser);
 				onUserUpdate(updatedUser);
-				setBanReason('');
-				setShowBanDialog(false);
+				setBanDialogOpen(false);
 
 				toast({
 					title: "Success",
@@ -173,7 +172,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 	if (loading) {
 		return (
 			<Dialog open={isOpen} onOpenChange={onClose}>
-				<DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+				<DialogContent className="w-[95vw] max-w-4xl h-[90vh] sm:h-[85vh] md:h-[80vh] overflow-y-auto p-4 sm:p-6">
 					<div className="flex justify-center py-8">
 						<BloodLoading message="Loading user details" />
 					</div>
@@ -186,24 +185,24 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+			<DialogContent className="w-[95vw] max-w-4xl h-[90vh] sm:h-[85vh] md:h-[80vh] overflow-y-auto p-4 sm:p-6">
 				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2">
-						<User className="h-5 w-5" />
+					<DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+						<User className="h-4 w-4 sm:h-5 sm:w-5" />
 						{user.firstName} {user.lastName}
 					</DialogTitle>
-					<DialogDescription>
+					<DialogDescription className="text-sm">
 						Detailed user information and activity history
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-6">
+				<div className="space-y-4 sm:space-y-6">
 					{/* User Status and Actions */}
-					<div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-						<div className="flex items-center gap-4">
+					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-muted rounded-lg">
+						<div className="flex flex-wrap items-center gap-2 sm:gap-4">
 							{getStatusBadge(user.isActive, user.isBanned)}
-							<Badge variant="outline">{user.role}</Badge>
-							<Badge variant="outline" className="flex items-center gap-1">
+							<Badge variant="outline" className="text-xs sm:text-sm">{user.role}</Badge>
+							<Badge variant="outline" className="flex items-center gap-1 text-xs sm:text-sm">
 								<Droplets className="h-3 w-3" />
 								{user.bloodType}
 							</Badge>
@@ -216,9 +215,11 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 									size="sm"
 									disabled={banLoading}
 									onClick={() => setBanDialogOpen(true)}
+									className="text-xs sm:text-sm"
 								>
-									<CheckCircle className="h-4 w-4 mr-2" />
-									Unban User
+									<CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+									<span className="hidden sm:inline">Unban User</span>
+									<span className="sm:hidden">Unban</span>
 								</Button>
 							) : (
 								<Button
@@ -226,9 +227,11 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 									size="sm"
 									disabled={banLoading}
 									onClick={() => setBanDialogOpen(true)}
+									className="text-xs sm:text-sm"
 								>
-									<Ban className="h-4 w-4 mr-2" />
-									Ban User
+									<Ban className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+									<span className="hidden sm:inline">Ban User</span>
+									<span className="sm:hidden">Ban</span>
 								</Button>
 							)}
 						</div>
@@ -238,12 +241,12 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 					{user.isBanned && (
 						<Card className="border-red-200 bg-red-50">
 							<CardHeader>
-								<CardTitle className="text-red-800 flex items-center gap-2">
-									<Ban className="h-5 w-5" />
+								<CardTitle className="text-red-800 flex items-center gap-2 text-sm sm:text-base">
+									<Ban className="h-4 w-4 sm:h-5 sm:w-5" />
 									Banned User
 								</CardTitle>
 							</CardHeader>
-							<CardContent className="space-y-2">
+							<CardContent className="space-y-2 text-sm sm:text-base">
 								<p><strong>Reason:</strong> {user.banReason}</p>
 								<p><strong>Banned on:</strong> {user.bannedAt ? formatDate(user.bannedAt) : 'N/A'}</p>
 								{user.bannedBy && (
@@ -254,43 +257,55 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 					)}
 
 					<Tabs defaultValue="profile" className="w-full">
-						<TabsList className="grid w-full grid-cols-4">
-							<TabsTrigger value="profile">Profile</TabsTrigger>
-							<TabsTrigger value="donations">Donations ({stats.donationCount})</TabsTrigger>
-							<TabsTrigger value="requests">Requests ({stats.requestCount})</TabsTrigger>
-							<TabsTrigger value="emergencies">Emergencies ({stats.emergencyCount})</TabsTrigger>
+						<TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+							<TabsTrigger value="profile" className="text-xs sm:text-sm p-2 sm:p-3">
+								<span className="hidden sm:inline">Profile</span>
+								<span className="sm:hidden">Info</span>
+							</TabsTrigger>
+							<TabsTrigger value="donations" className="text-xs sm:text-sm p-2 sm:p-3">
+								<span className="hidden sm:inline">Donations ({stats.donationCount})</span>
+								<span className="sm:hidden">Dona. ({stats.donationCount})</span>
+							</TabsTrigger>
+							<TabsTrigger value="requests" className="text-xs sm:text-sm p-2 sm:p-3">
+								<span className="hidden sm:inline">Requests ({stats.requestCount})</span>
+								<span className="sm:hidden">Req. ({stats.requestCount})</span>
+							</TabsTrigger>
+							<TabsTrigger value="emergencies" className="text-xs sm:text-sm p-2 sm:p-3">
+								<span className="hidden sm:inline">Emergencies ({stats.emergencyCount})</span>
+								<span className="sm:hidden">Emer. ({stats.emergencyCount})</span>
+							</TabsTrigger>
 						</TabsList>
 
-						<TabsContent value="profile" className="space-y-4">
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<TabsContent value="profile" className="space-y-3 sm:space-y-4">
+							<div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
 								<Card>
 									<CardHeader>
-										<CardTitle className="flex items-center gap-2">
+										<CardTitle className="flex items-center gap-2 text-sm sm:text-base">
 											<User className="h-4 w-4" />
 											Personal Information
 										</CardTitle>
 									</CardHeader>
-									<CardContent className="space-y-3">
-										<div className="flex items-center gap-2">
-											<Mail className="h-4 w-4 text-muted-foreground" />
-											<span>{user.email}</span>
+									<CardContent className="space-y-2 sm:space-y-3">
+										<div className="flex items-start sm:items-center gap-2 text-sm sm:text-base">
+											<Mail className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5 sm:mt-0" />
+											<span className="break-all">{user.email}</span>
 										</div>
-										<div className="flex items-center gap-2">
-											<Phone className="h-4 w-4 text-muted-foreground" />
+										<div className="flex items-center gap-2 text-sm sm:text-base">
+											<Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
 											<span>{user.phone}</span>
 										</div>
-										<div className="flex items-center gap-2">
-											<MapPin className="h-4 w-4 text-muted-foreground" />
-											<span>{user.location.area}, {user.location.city}</span>
+										<div className="flex items-start sm:items-center gap-2 text-sm sm:text-base">
+											<MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5 sm:mt-0" />
+											<span className="break-words">{user.location.area}, {user.location.city}</span>
 										</div>
-										<div className="flex items-center gap-2">
-											<Calendar className="h-4 w-4 text-muted-foreground" />
-											<span>Joined {formatDate(user.createdAt)}</span>
+										<div className="flex items-start sm:items-center gap-2 text-sm sm:text-base">
+											<Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5 sm:mt-0" />
+											<span className="break-words">Joined {formatDate(user.createdAt)}</span>
 										</div>
 										{user.lastLogin && (
-											<div className="flex items-center gap-2">
-												<Activity className="h-4 w-4 text-muted-foreground" />
-												<span>Last login {formatDate(user.lastLogin)}</span>
+											<div className="flex items-start sm:items-center gap-2 text-sm sm:text-base">
+												<Activity className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5 sm:mt-0" />
+												<span className="break-words">Last login {formatDate(user.lastLogin)}</span>
 											</div>
 										)}
 									</CardContent>
@@ -298,12 +313,12 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
 								<Card>
 									<CardHeader>
-										<CardTitle className="flex items-center gap-2">
+										<CardTitle className="flex items-center gap-2 text-sm sm:text-base">
 											<Heart className="h-4 w-4" />
 											Medical Information
 										</CardTitle>
 									</CardHeader>
-									<CardContent className="space-y-3">
+									<CardContent className="space-y-2 sm:space-y-3 text-sm sm:text-base">
 										<div>
 											<strong>Blood Type:</strong> {user.bloodType}
 										</div>
@@ -323,12 +338,12 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 												</div>
 												{user.medicalHistory.diseases.length > 0 && (
 													<div>
-														<strong>Diseases:</strong> {user.medicalHistory.diseases.join(', ')}
+														<strong>Diseases:</strong> <span className="break-words">{user.medicalHistory.diseases.join(', ')}</span>
 													</div>
 												)}
 												{user.medicalHistory.allergies.length > 0 && (
 													<div>
-														<strong>Allergies:</strong> {user.medicalHistory.allergies.join(', ')}
+														<strong>Allergies:</strong> <span className="break-words">{user.medicalHistory.allergies.join(', ')}</span>
 													</div>
 												)}
 											</>
@@ -341,28 +356,28 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 						<TabsContent value="donations">
 							<Card>
 								<CardHeader>
-									<CardTitle>Donation History</CardTitle>
-									<CardDescription>Recent blood donations by this user</CardDescription>
+									<CardTitle className="text-sm sm:text-base">Donation History</CardTitle>
+									<CardDescription className="text-xs sm:text-sm">Recent blood donations by this user</CardDescription>
 								</CardHeader>
 								<CardContent>
 									{donations.length > 0 ? (
 										<div className="space-y-3">
 											{donations.map((donation) => (
-												<div key={donation._id} className="flex items-center justify-between p-3 border rounded-lg">
-													<div>
-														<p className="font-medium">Blood Type: {donation.request.patient.bloodType}</p>
-														<p className="text-sm text-muted-foreground">
+												<div key={donation._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 p-3 border rounded-lg">
+													<div className="flex-1">
+														<p className="font-medium text-sm sm:text-base">Blood Type: {donation.request.patient.bloodType}</p>
+														<p className="text-xs sm:text-sm text-muted-foreground">
 															{formatDate(donation.createdAt)}
 														</p>
 													</div>
-													<Badge variant={donation.status === 'completed' ? 'default' : 'secondary'}>
+													<Badge variant={donation.status === 'completed' ? 'default' : 'secondary'} className="self-start sm:self-center text-xs">
 														{donation.status}
 													</Badge>
 												</div>
 											))}
 										</div>
 									) : (
-										<p className="text-center text-muted-foreground py-8">
+										<p className="text-center text-muted-foreground py-8 text-sm sm:text-base">
 											No donations found
 										</p>
 									)}
@@ -373,29 +388,29 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 						<TabsContent value="requests">
 							<Card>
 								<CardHeader>
-									<CardTitle>Blood Requests</CardTitle>
-									<CardDescription>Blood requests made by this user</CardDescription>
+									<CardTitle className="text-sm sm:text-base">Blood Requests</CardTitle>
+									<CardDescription className="text-xs sm:text-sm">Blood requests made by this user</CardDescription>
 								</CardHeader>
 								<CardContent>
 									{requests.length > 0 ? (
 										<div className="space-y-3">
 											{requests.map((request) => (
-												<div key={request._id} className="flex items-center justify-between p-3 border rounded-lg">
-													<div>
-														<p className="font-medium">Patient: {request.patient.name}</p>
-														<p className="text-sm">Blood Type: {request.patient.bloodType}</p>
-														<p className="text-sm text-muted-foreground">
+												<div key={request._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 p-3 border rounded-lg">
+													<div className="flex-1">
+														<p className="font-medium text-sm sm:text-base break-words">Patient: {request.patient.name}</p>
+														<p className="text-xs sm:text-sm">Blood Type: {request.patient.bloodType}</p>
+														<p className="text-xs sm:text-sm text-muted-foreground">
 															{formatDate(request.createdAt)}
 														</p>
 													</div>
-													<Badge variant={request.status === 'fulfilled' ? 'default' : 'secondary'}>
+													<Badge variant={request.status === 'fulfilled' ? 'default' : 'secondary'} className="self-start sm:self-center text-xs">
 														{request.status}
 													</Badge>
 												</div>
 											))}
 										</div>
 									) : (
-										<p className="text-center text-muted-foreground py-8">
+										<p className="text-center text-muted-foreground py-8 text-sm sm:text-base">
 											No blood requests found
 										</p>
 									)}
@@ -406,30 +421,30 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 						<TabsContent value="emergencies">
 							<Card>
 								<CardHeader>
-									<CardTitle>Emergency Requests</CardTitle>
-									<CardDescription>Emergency blood requests made by this user</CardDescription>
+									<CardTitle className="text-sm sm:text-base">Emergency Requests</CardTitle>
+									<CardDescription className="text-xs sm:text-sm">Emergency blood requests made by this user</CardDescription>
 								</CardHeader>
 								<CardContent>
 									{emergencyRequests.length > 0 ? (
 										<div className="space-y-3">
 											{emergencyRequests.map((request) => (
-												<div key={request._id} className="flex items-center justify-between p-3 border rounded-lg">
-													<div>
-														<p className="font-medium">Patient: {request.patient.name}</p>
-														<p className="text-sm">Blood Type: {request.patient.bloodType}</p>
-														<p className="text-sm">Severity: {request.emergency.severity}</p>
-														<p className="text-sm text-muted-foreground">
+												<div key={request._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 p-3 border rounded-lg">
+													<div className="flex-1">
+														<p className="font-medium text-sm sm:text-base break-words">Patient: {request.patient.name}</p>
+														<p className="text-xs sm:text-sm">Blood Type: {request.patient.bloodType}</p>
+														<p className="text-xs sm:text-sm">Severity: {request.emergency.severity}</p>
+														<p className="text-xs sm:text-sm text-muted-foreground">
 															{formatDate(request.createdAt)}
 														</p>
 													</div>
-													<Badge variant={request.status === 'fulfilled' ? 'default' : 'destructive'}>
+													<Badge variant={request.status === 'fulfilled' ? 'default' : 'destructive'} className="self-start sm:self-center text-xs">
 														{request.status}
 													</Badge>
 												</div>
 											))}
 										</div>
 									) : (
-										<p className="text-center text-muted-foreground py-8">
+										<p className="text-center text-muted-foreground py-8 text-sm sm:text-base">
 											No emergency requests found
 										</p>
 									)}
@@ -446,6 +461,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 				onConfirm={handleBanConfirm}
 				user={user}
 				isLoading={banLoading}
+				isBanning={!user?.isBanned}
 			/>
 		</Dialog>
 	);

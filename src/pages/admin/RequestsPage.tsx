@@ -59,107 +59,107 @@ const RequestDetailsDialog = ({
 	getStatusBadge: (status: string) => JSX.Element;
 }) => {
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4 sm:space-y-6">
 			{/* Patient Information */}
-			<div className="grid md:grid-cols-2 gap-6">
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 				<Card>
 					<CardHeader>
-						<CardTitle className="flex items-center">
+						<CardTitle className="flex items-center text-sm sm:text-base">
 							<User className="h-4 w-4 mr-2" />
 							Patient Information
 						</CardTitle>
 					</CardHeader>
-					<CardContent className="space-y-3">
+					<CardContent className="space-y-2 sm:space-y-3">
 						<div>
-							<Label className="text-sm font-medium">Name</Label>
-							<p className="text-sm text-muted-foreground">{request.patient.name}</p>
+							<Label className="text-xs sm:text-sm font-medium">Name</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground break-words">{request.patient.name}</p>
 						</div>
 						<div>
-							<Label className="text-sm font-medium">Age</Label>
-							<p className="text-sm text-muted-foreground">{request.patient.age} years</p>
+							<Label className="text-xs sm:text-sm font-medium">Age</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground">{request.patient.age} years</p>
 						</div>
 						<div>
-							<Label className="text-sm font-medium">Blood Type</Label>
-							<Badge variant="outline" className="bg-red-50 text-red-700">
+							<Label className="text-xs sm:text-sm font-medium">Blood Type</Label>
+							<Badge variant="outline" className="bg-red-50 text-red-700 text-xs">
 								{request.patient.bloodType}
 							</Badge>
 						</div>
 						<div>
-							<Label className="text-sm font-medium">Contact</Label>
-							<p className="text-sm text-muted-foreground">{request.patient.contactNumber}</p>
+							<Label className="text-xs sm:text-sm font-medium">Contact</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground break-all">{request.patient.contactNumber}</p>
 						</div>
 					</CardContent>
 				</Card>
 
 				<Card>
 					<CardHeader>
-						<CardTitle className="flex items-center">
+						<CardTitle className="flex items-center text-sm sm:text-base">
 							<Phone className="h-4 w-4 mr-2" />
 							Requester Information
 						</CardTitle>
 					</CardHeader>
-					<CardContent className="space-y-3">
+					<CardContent className="space-y-2 sm:space-y-3">
 						<div>
-							<Label className="text-sm font-medium">Name</Label>
-							<p className="text-sm text-muted-foreground">
+							<Label className="text-xs sm:text-sm font-medium">Name</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground break-words">
 								{request.requester.firstName} {request.requester.lastName}
 							</p>
 						</div>
 						<div>
-							<Label className="text-sm font-medium">Email</Label>
-							<p className="text-sm text-muted-foreground">{request.requester.email}</p>
+							<Label className="text-xs sm:text-sm font-medium">Email</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground break-all">{request.requester.email}</p>
 						</div>
 						<div>
-							<Label className="text-sm font-medium">Phone</Label>
-							<p className="text-sm text-muted-foreground">{request.requester.phone}</p>
+							<Label className="text-xs sm:text-sm font-medium">Phone</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground break-all">{request.requester.phone}</p>
 						</div>
 					</CardContent>
 				</Card>
 			</div>
 
 			{/* Hospital & Requirement Info */}
-			<div className="grid md:grid-cols-2 gap-6">
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 				<Card>
 					<CardHeader>
-						<CardTitle>Hospital Information</CardTitle>
+						<CardTitle className="text-sm sm:text-base">Hospital Information</CardTitle>
 					</CardHeader>
-					<CardContent className="space-y-3">
+					<CardContent className="space-y-2 sm:space-y-3">
 						<div>
-							<Label className="text-sm font-medium">Hospital</Label>
-							<p className="text-sm text-muted-foreground">{request.hospital.name}</p>
+							<Label className="text-xs sm:text-sm font-medium">Hospital</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground break-words">{request.hospital.name}</p>
 						</div>
 						<div>
-							<Label className="text-sm font-medium">Address</Label>
-							<p className="text-sm text-muted-foreground">{request.hospital.address}</p>
+							<Label className="text-xs sm:text-sm font-medium">Address</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground break-words">{request.hospital.address}</p>
 						</div>
 						<div>
-							<Label className="text-sm font-medium">Doctor</Label>
-							<p className="text-sm text-muted-foreground">Dr. {request.hospital.doctorName}</p>
+							<Label className="text-xs sm:text-sm font-medium">Doctor</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground break-words">Dr. {request.hospital.doctorName}</p>
 						</div>
 					</CardContent>
 				</Card>
 
 				<Card>
 					<CardHeader>
-						<CardTitle>Blood Requirement</CardTitle>
+						<CardTitle className="text-sm sm:text-base">Blood Requirement</CardTitle>
 					</CardHeader>
-					<CardContent className="space-y-3">
+					<CardContent className="space-y-2 sm:space-y-3">
 						<div>
-							<Label className="text-sm font-medium">Units Needed</Label>
-							<p className="text-sm text-muted-foreground">{request.bloodRequirement.units} units</p>
+							<Label className="text-xs sm:text-sm font-medium">Units Needed</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground">{request.bloodRequirement.units} units</p>
 						</div>
 						<div>
-							<Label className="text-sm font-medium">Urgency</Label>
+							<Label className="text-xs sm:text-sm font-medium">Urgency</Label>
 							<div>{getUrgencyBadge(request.bloodRequirement.urgency)}</div>
 						</div>
 						<div>
-							<Label className="text-sm font-medium">Required By</Label>
-							<p className="text-sm text-muted-foreground">
+							<Label className="text-xs sm:text-sm font-medium">Required By</Label>
+							<p className="text-xs sm:text-sm text-muted-foreground">
 								{new Date(request.bloodRequirement.requiredBy).toLocaleDateString()}
 							</p>
 						</div>
 						<div>
-							<Label className="text-sm font-medium">Status</Label>
+							<Label className="text-xs sm:text-sm font-medium">Status</Label>
 							<div>{getStatusBadge(request.status)}</div>
 						</div>
 					</CardContent>
@@ -170,55 +170,65 @@ const RequestDetailsDialog = ({
 			{request.status === 'pending' && (
 				<Card>
 					<CardHeader>
-						<CardTitle>Admin Actions</CardTitle>
-						<CardDescription>
+						<CardTitle className="text-sm sm:text-base">Admin Actions</CardTitle>
+						<CardDescription className="text-xs sm:text-sm">
 							Update the status of this blood request and provide feedback to the requester
 						</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-4">
+					<CardContent className="space-y-3 sm:space-y-4">
 						<div>
-							<Label htmlFor="adminMessage">Message to Requester</Label>
+							<Label htmlFor="adminMessage" className="text-xs sm:text-sm font-medium">Message to Requester</Label>
 							<Textarea
 								id="adminMessage"
 								placeholder="Enter a message for the requester..."
 								value={adminMessage}
 								onChange={(e) => setAdminMessage(e.target.value)}
-								className="mt-1"
+								className="mt-1 text-xs sm:text-sm"
+								rows={3}
 							/>
 						</div>
 						<div>
-							<Label htmlFor="adminNotes">Internal Notes</Label>
+							<Label htmlFor="adminNotes" className="text-xs sm:text-sm font-medium">Internal Notes</Label>
 							<Textarea
 								id="adminNotes"
 								placeholder="Add internal notes (not visible to requester)..."
 								value={adminNotes}
 								onChange={(e) => setAdminNotes(e.target.value)}
-								className="mt-1"
+								className="mt-1 text-xs sm:text-sm"
+								rows={3}
 							/>
 						</div>
-						<div className="flex gap-2">
+						<div className="flex flex-col sm:flex-row gap-2">
 							<Button
 								onClick={() => onStatusUpdate(request._id, 'fulfilled')}
 								disabled={actionLoading}
-								className="bg-green-600 hover:bg-green-700"
+								className="bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
+								size="sm"
 							>
-								<CheckCircle className="h-4 w-4 mr-2" />
-								Fulfill Request
+								<CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+								<span className="hidden sm:inline">Fulfill Request</span>
+								<span className="sm:hidden">Fulfill</span>
 							</Button>
 							<Button
 								onClick={() => onStatusUpdate(request._id, 'partially-fulfilled')}
 								disabled={actionLoading}
 								variant="outline"
+								className="text-xs sm:text-sm"
+								size="sm"
 							>
-								Partially Fulfill
+								<span className="hidden sm:inline">Partially Fulfill</span>
+								<span className="sm:hidden">Partial</span>
 							</Button>
 							<Button
 								onClick={() => onStatusUpdate(request._id, 'cancelled')}
 								disabled={actionLoading}
 								variant="destructive"
+								className="text-xs sm:text-sm"
+								size="sm"
 							>
-								<XCircle className="h-4 w-4 mr-2" />
-								Decline Request
+								<XCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+								<span className="hidden sm:inline">Decline Request</span>
+								<span className="sm:hidden">Decline</span>
 							</Button>
 						</div>
 					</CardContent>
@@ -229,25 +239,25 @@ const RequestDetailsDialog = ({
 			{(request.adminMessage || request.adminNotes) && (
 				<Card>
 					<CardHeader>
-						<CardTitle>Admin Feedback</CardTitle>
+						<CardTitle className="text-sm sm:text-base">Admin Feedback</CardTitle>
 					</CardHeader>
-					<CardContent className="space-y-3">
+					<CardContent className="space-y-2 sm:space-y-3">
 						{request.adminMessage && (
 							<div>
-								<Label className="text-sm font-medium">Message to Requester</Label>
-								<p className="text-sm text-muted-foreground">{request.adminMessage}</p>
+								<Label className="text-xs sm:text-sm font-medium">Message to Requester</Label>
+								<p className="text-xs sm:text-sm text-muted-foreground break-words">{request.adminMessage}</p>
 							</div>
 						)}
 						{request.adminNotes && (
 							<div>
-								<Label className="text-sm font-medium">Internal Notes</Label>
-								<p className="text-sm text-muted-foreground">{request.adminNotes}</p>
+								<Label className="text-xs sm:text-sm font-medium">Internal Notes</Label>
+								<p className="text-xs sm:text-sm text-muted-foreground break-words">{request.adminNotes}</p>
 							</div>
 						)}
 						{request.processedBy && (
 							<div>
-								<Label className="text-sm font-medium">Processed By</Label>
-								<p className="text-sm text-muted-foreground">
+								<Label className="text-xs sm:text-sm font-medium">Processed By</Label>
+								<p className="text-xs sm:text-sm text-muted-foreground break-words">
 									{request.processedBy.firstName} {request.processedBy.lastName} on{' '}
 									{new Date(request.processedAt!).toLocaleDateString()}
 								</p>
@@ -512,10 +522,10 @@ const RequestsPage = () => {
 																	View
 																</Button>
 															</DialogTrigger>
-															<DialogContent className="max-w-4xl">
+															<DialogContent className="w-[95vw] max-w-4xl h-[90vh] sm:h-[85vh] md:h-[80vh] overflow-y-auto p-4 sm:p-6">
 																<DialogHeader>
-																	<DialogTitle>Blood Request Details</DialogTitle>
-																	<DialogDescription>
+																	<DialogTitle className="text-base sm:text-lg">Blood Request Details</DialogTitle>
+																	<DialogDescription className="text-sm">
 																		View and manage blood request from {request.patient.name}
 																	</DialogDescription>
 																</DialogHeader>
