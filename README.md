@@ -60,6 +60,7 @@ BloodConnect employs a modern, scalable architecture:
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [SSLCommerz Payment Integration](#sslcommerz-payment-integration)
 - [Usage](#usage)
 - [API Documentation](#api-documentation)
 - [Database Schema](#database-schema)
@@ -94,8 +95,21 @@ BloodConnect employs a modern, scalable architecture:
 - **Data Analytics**: Donation statistics and insights
 - **Mobile Responsive**: Optimized for all device types
 - **Security Features**: Data encryption, rate limiting, and input validation
+- **Payment Gateway Integration**: SSLCommerz payment processing for monetary donations
+
+### Payment & Donation Features
+
+- **SSLCommerz Integration**: Secure payment gateway for monetary donations
+- **Multiple Payment Methods**: Support for bKash, Nagad, DBBL Mobile Banking, and credit/debit cards
+- **Donation Purposes**: Categorized donations (General, Emergency, Research, Equipment)
+- **Anonymous Donations**: Option for donors to remain anonymous
+- **Transaction History**: Complete payment tracking and history
+- **Payment Notifications**: Real-time payment status updates
+- **Secure Processing**: PCI DSS compliant payment handling
+- **Admin Payment Management**: Comprehensive payment oversight and analytics
 
 ### User Experience
+
 - **Modern UI/UX**: Clean, intuitive interface built with shadcn/ui
 - **Dark/Light Mode**: Theme switching capability
 - **Progressive Web App**: Offline functionality and mobile app experience
@@ -206,7 +220,152 @@ EMAIL_PASS=your_app_password
 # File Upload Configuration
 MAX_FILE_SIZE=5MB
 UPLOAD_PATH=./uploads
+
+# SSLCommerz Payment Gateway Configuration
+SSLCOMMERZ_STORE_ID=your_store_id
+SSLCOMMERZ_STORE_PASSWORD=your_store_password
+SSLCOMMERZ_IS_LIVE=false
 ```
+
+## SSLCommerz Payment Integration
+
+BloodConnect integrates with SSLCommerz, Bangladesh's leading payment gateway, to enable secure monetary donations. This integration supports multiple payment methods including mobile banking, credit/debit cards, and internet banking.
+
+### Supported Payment Methods
+
+- **Mobile Banking**: bKash, Nagad, Rocket
+- **Bank Cards**: Visa, MasterCard, American Express
+- **Internet Banking**: All major Bangladeshi banks
+- **Mobile Banking Apps**: DBBL Mobile Banking, UCB Mobile Banking
+
+### Payment Features
+
+#### Donation Categories
+- **General Donation**: Support for general blood bank operations
+- **Emergency Fund**: Emergency medical assistance
+- **Research Fund**: Medical research and development
+- **Equipment Fund**: Medical equipment procurement
+
+#### Security Features
+- **PCI DSS Compliance**: Industry-standard security protocols
+- **SSL Encryption**: End-to-end encrypted transactions
+- **Fraud Detection**: Real-time transaction monitoring
+- **Secure Callbacks**: Server-to-server payment verification
+
+#### Payment Flow
+1. **Donation Form**: User fills donation details on `/donation` page
+2. **Payment Initiation**: System creates payment record and redirects to SSLCommerz
+3. **Payment Processing**: User completes payment on SSLCommerz gateway
+4. **Callback Handling**: System receives payment confirmation via IPN
+5. **Status Update**: Payment status updated in real-time
+6. **Confirmation**: User receives payment confirmation and receipt
+
+### Payment API Endpoints
+
+#### Payment Initiation
+```http
+POST /api/payment/initiate
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "amount": 1000,
+  "purpose": "general",
+  "donorName": "John Doe",
+  "donorEmail": "john@example.com",
+  "donorPhone": "01700000000",
+  "message": "Optional donation message",
+  "isAnonymous": false
+}
+```
+
+#### Payment Status Check
+```http
+GET /api/payment/status/:transactionId
+Authorization: Bearer <token>
+```
+
+#### Payment History
+```http
+GET /api/payment/history?page=1&limit=10&status=SUCCESS
+Authorization: Bearer <token>
+```
+
+### Admin Payment Management
+
+Administrators have comprehensive payment oversight capabilities:
+
+- **Payment Dashboard**: Real-time payment statistics and analytics
+- **Transaction Monitoring**: View all payment transactions with filtering
+- **Payment Status Management**: Update payment statuses manually if needed
+- **Financial Reporting**: Generate payment reports by date, method, or purpose
+- **Refund Management**: Process refunds for failed or disputed transactions
+
+### Payment Database Schema
+
+```javascript
+{
+  transactionId: String (unique),
+  userId: ObjectId,
+  amount: Number,
+  purpose: String, // 'general', 'emergency', 'research', 'equipment'
+  donorName: String,
+  donorEmail: String,
+  donorPhone: String,
+  message: String,
+  isAnonymous: Boolean,
+  status: String, // 'PENDING', 'SUCCESS', 'FAILED', 'CANCELLED'
+  sessionkey: String,
+  validationId: String,
+  bankTransactionId: String,
+  cardType: String, // Payment method used
+  gatewayResponse: Object, // Full SSLCommerz response
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Testing Payment Integration
+
+#### Development Environment
+```bash
+# Start the application
+npm run dev
+
+# Navigate to donation page
+http://localhost:8080/donation
+
+# Use SSLCommerz sandbox credentials for testing
+```
+
+#### Test Card Details (Sandbox)
+- **Success Transaction**: 4111111111111111
+- **Failed Transaction**: 4000000000000002
+- **CVV**: Any 3 digits (e.g., 123)
+- **Expiry Date**: Any future date (e.g., 12/25)
+
+### Production Configuration
+
+For production deployment, update the following environment variables:
+
+```env
+# Production SSLCommerz Configuration
+SSLCOMMERZ_STORE_ID=your_production_store_id
+SSLCOMMERZ_STORE_PASSWORD=your_production_store_password
+SSLCOMMERZ_IS_LIVE=true
+
+# Production URLs
+FRONTEND_URL=https://bloodconnect.mhrrony.com
+BACKEND_URL=https://api.bloodconnect.mhrrony.com
+```
+
+### Payment Security Measures
+
+1. **Transaction Validation**: All payments validated server-side with SSLCommerz
+2. **Duplicate Prevention**: Transaction ID uniqueness enforcement
+3. **Amount Verification**: Payment amount validation before processing
+4. **Secure Logging**: Comprehensive audit trail for all transactions
+5. **Error Handling**: Graceful handling of payment failures and timeouts
 
 ### Database Setup
 
@@ -314,11 +473,23 @@ DELETE /api/users/:id      # Delete user (Admin only)
 ### Admin Endpoints
 ```
 GET    /api/admin/dashboard          # Admin dashboard data
+GET    /api/admin/payments           # Get all payments (Admin only)
 GET    /api/admin/settings/info      # Get admin information
 PUT    /api/admin/settings/info      # Update admin information
 PUT    /api/admin/settings/password  # Change admin password
 GET    /api/admin/settings/logs      # Get system logs
 POST   /api/admin/settings/backup    # Create database backup
+```
+
+### Payment Endpoints
+```
+POST   /api/payment/initiate         # Initiate new payment
+GET    /api/payment/status/:id       # Get payment status
+GET    /api/payment/history          # Get user payment history
+POST   /api/payment/ipn              # SSLCommerz IPN callback
+GET    /api/payment/success          # Payment success callback
+GET    /api/payment/failed           # Payment failure callback
+GET    /api/payment/cancelled        # Payment cancellation callback
 ```
 
 ## Database Schema
@@ -375,6 +546,30 @@ POST   /api/admin/settings/backup    # Create database backup
   additionalNotes: String,
   status: String, // 'active', 'fulfilled', 'expired', 'cancelled'
   requestedBy: ObjectId,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Payment Model
+```javascript
+{
+  transactionId: String (unique),
+  userId: ObjectId,
+  amount: Number,
+  purpose: String, // 'general', 'emergency', 'research', 'equipment'
+  donorName: String,
+  donorEmail: String,
+  donorPhone: String,
+  message: String,
+  isAnonymous: Boolean,
+  status: String, // 'PENDING', 'SUCCESS', 'FAILED', 'CANCELLED'
+  sessionkey: String,
+  validationId: String,
+  bankTransactionId: String,
+  cardType: String, // Payment method identifier
+  gatewayResponse: Object, // SSLCommerz response data
+  ipnData: Object, // IPN notification data
   createdAt: Date,
   updatedAt: Date
 }
@@ -511,6 +706,7 @@ FRONTEND_URL=https://your-frontend-domain.com
 - **express-validator** - Input validation middleware
 - **helmet** - Security middleware
 - **cors** - Cross-origin resource sharing
+- **SSLCommerz** - Payment gateway integration for secure transactions
 
 ### Development Tools
 - **ESLint** - Code linting and formatting
@@ -582,6 +778,26 @@ We welcome contributions from the community! Please follow these steps:
    - Manage notification preferences
    - Track donation statistics
 
+### For Monetary Donors
+
+1. **Donation Process**
+   - Navigate to donation page
+   - Select donation amount and purpose
+   - Fill donor information (name, email, phone)
+   - Choose payment method (bKash, Nagad, Cards, etc.)
+   - Complete secure payment via SSLCommerz gateway
+
+2. **Payment Tracking**
+   - Receive real-time payment confirmation
+   - View payment history and receipts
+   - Track donation impact and usage
+   - Download payment certificates
+
+3. **Anonymous Donations**
+   - Option to donate anonymously
+   - Hide personal details from public records
+   - Maintain payment security and verification
+
 ### For Blood Recipients/Hospitals
 
 1. **Emergency Request Process**
@@ -609,6 +825,13 @@ We welcome contributions from the community! Please follow these steps:
    - Manage stock alerts and notifications
    - Coordinate with multiple blood banks
    - Generate inventory reports
+
+3. **Payment Management**
+   - Monitor all payment transactions
+   - View payment analytics and statistics
+   - Process refunds and handle disputes
+   - Generate financial reports
+   - Track donation purposes and utilization
 
 ## System Requirements
 

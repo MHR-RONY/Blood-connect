@@ -13,9 +13,9 @@ BACKEND_URL=http://localhost:3001
 ```
 
 ### Store Details
-- **Store ID**: codec6877f70ea1b0a
-- **Store Password**: codec6877f70ea1b0a@ssl
-- **Store Name**: testcodec21ip
+- **Store ID**:
+- **Store Password**:
+- **Store Name**: 
 - **Registered URL**: https://codecampus.mhrrony.com
 - **Environment**: Sandbox (Development)
 
