@@ -2,6 +2,7 @@ import React, { createContext, useEffect, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { tokenStorage } from '@/services/api';
+import config from '@/config/env';
 
 export interface User {
 	_id: string;
@@ -69,7 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 			}
 
 			// Verify token with backend
-			const response = await fetch('http://localhost:3001/api/auth/me', {
+			const response = await fetch(`${config.API_BASE_URL}/auth/me`, {
 				method: 'GET',
 				headers: {
 					'Authorization': `Bearer ${token}`,
@@ -145,7 +146,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 					}
 
 					// Verify token with backend
-					const response = await fetch('http://localhost:3001/api/auth/me', {
+					const response = await fetch(`${config.API_BASE_URL}/auth/me`, {
 						method: 'GET',
 						headers: {
 							'Authorization': `Bearer ${token}`,
