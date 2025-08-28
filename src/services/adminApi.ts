@@ -396,4 +396,108 @@ export const adminApi = {
 			};
 		}>(`/admin/donors/${donorId}`);
 	},
+
+	// Payment/Monetary Donations endpoints
+	getPayments: async (params?: {
+		status?: string;
+		startDate?: string;
+		endDate?: string;
+		page?: number;
+		limit?: number;
+	}): Promise<ApiResponse<{
+		payments: Array<{
+			_id: string;
+			transactionId: string;
+			userId: {
+				_id: string;
+				firstName: string;
+				lastName: string;
+				email: string;
+			};
+			amount: number;
+			purpose: string;
+			donorName: string;
+			donorEmail: string;
+			donorPhone: string;
+			message?: string;
+			isAnonymous: boolean;
+			status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+			cardType?: string;
+			paymentDetails?: {
+				validationId?: string;
+				bankTransactionId?: string;
+				cardType?: string;
+			};
+			createdAt: string;
+			updatedAt: string;
+		}>;
+		summary: {
+			totalAmount: number;
+			totalPayments: number;
+			successfulPayments: number;
+			failedPayments: number;
+			pendingPayments: number;
+		};
+		paymentMethods: Array<{
+			_id: string;
+			count: number;
+			totalAmount: number;
+		}>;
+		purposeDistribution: Array<{
+			_id: string;
+			count: number;
+			totalAmount: number;
+		}>;
+		pagination: {
+			currentPage: number;
+			totalPages: number;
+			totalItems: number;
+			itemsPerPage: number;
+		};
+	}>> => {
+		const token = tokenStorage.get();
+		if (!token) {
+			throw new ApiError('No authentication token found', 401);
+		}
+
+		const searchParams = new URLSearchParams();
+		if (params?.status) searchParams.append('status', params.status);
+		if (params?.startDate) searchParams.append('startDate', params.startDate);
+		if (params?.endDate) searchParams.append('endDate', params.endDate);
+		if (params?.page) searchParams.append('page', params.page.toString());
+		if (params?.limit) searchParams.append('limit', params.limit.toString());
+
+		const url = `/admin/payments${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+
+		const response = await fetch(`${API_BASE_URL}${url}`, {
+			method: 'GET',
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+		});
+
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({}));
+			throw new ApiError(
+				errorData.message || `HTTP error! status: ${response.status}`,
+				response.status
+			);
+		}
+
+		const data = await response.json();
+		
+		// The backend returns data directly, so we need to wrap it in the expected format
+		return {
+			success: true,
+			message: data.message || 'Payments retrieved successfully',
+			data: {
+				payments: data.payments || [],
+				summary: data.summary || null,
+				paymentMethods: data.paymentMethods || [],
+				purposeDistribution: data.purposeDistribution || [],
+				pagination: data.pagination || null
+			}
+		};
+	},
 };

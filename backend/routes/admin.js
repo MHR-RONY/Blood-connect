@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Donation = require('../models/Donation');
 const BloodRequest = require('../models/BloodRequest');
 const EmergencyRequest = require('../models/EmergencyRequest');
+const Payment = require('../models/Payment');
 const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validation');
 
@@ -461,6 +462,172 @@ router.get('/donations', [
 		console.error('Get admin donations error:', error);
 		res.status(500).json({
 			message: 'Failed to retrieve donations',
+			error: process.env.NODE_ENV === 'development' ? error.message : undefined
+		});
+	}
+});
+
+// @route   GET /api/admin/payments
+// @desc    Get all monetary donations/payments for admin
+// @access  Admin only
+router.get('/payments', [
+	query('status')
+		.optional()
+		.isIn(['PENDING', 'SUCCESS', 'FAILED', 'CANCELLED'])
+		.withMessage('Invalid status'),
+	query('startDate')
+		.optional()
+		.isISO8601()
+		.withMessage('Invalid start date'),
+	query('endDate')
+		.optional()
+		.isISO8601()
+		.withMessage('Invalid end date'),
+	query('page')
+		.optional()
+		.isInt({ min: 1 })
+		.withMessage('Page must be a positive integer'),
+	query('limit')
+		.optional()
+		.isInt({ min: 1, max: 100 })
+		.withMessage('Limit must be between 1 and 100'),
+	validate
+], async (req, res) => {
+	try {
+		const {
+			status,
+			startDate,
+			endDate,
+			page = 1,
+			limit = 20
+		} = req.query;
+
+		// Build search query
+		const searchQuery = {};
+
+		if (status) {
+			searchQuery.status = status;
+		}
+
+		if (startDate || endDate) {
+			searchQuery.createdAt = {};
+			if (startDate) {
+				searchQuery.createdAt.$gte = new Date(startDate);
+			}
+			if (endDate) {
+				searchQuery.createdAt.$lte = new Date(endDate);
+			}
+		}
+
+		// Get payments with pagination
+		const [payments, total] = await Promise.all([
+			Payment.find(searchQuery)
+				.populate('userId', 'firstName lastName email')
+				.select('-__v')
+				.sort({ createdAt: -1 })
+				.limit(parseInt(limit))
+				.skip((parseInt(page) - 1) * parseInt(limit)),
+			Payment.countDocuments(searchQuery)
+		]);
+
+		// Calculate stats
+		const stats = await Payment.aggregate([
+			{ $match: searchQuery },
+			{
+				$group: {
+					_id: null,
+					totalAmount: { 
+						$sum: { 
+							$cond: { 
+								if: { $eq: ['$status', 'SUCCESS'] }, 
+								then: '$amount', 
+								else: 0 
+							} 
+						} 
+					},
+					totalPayments: { $sum: 1 },
+					successfulPayments: {
+						$sum: { 
+							$cond: { 
+								if: { $eq: ['$status', 'SUCCESS'] }, 
+								then: 1, 
+								else: 0 
+							} 
+						}
+					},
+					failedPayments: {
+						$sum: { 
+							$cond: { 
+								if: { $eq: ['$status', 'FAILED'] }, 
+								then: 1, 
+								else: 0 
+							} 
+						}
+					},
+					pendingPayments: {
+						$sum: { 
+							$cond: { 
+								if: { $eq: ['$status', 'PENDING'] }, 
+								then: 1, 
+								else: 0 
+							} 
+						}
+					}
+				}
+			}
+		]);
+
+		const summary = stats[0] || {
+			totalAmount: 0,
+			totalPayments: 0,
+			successfulPayments: 0,
+			failedPayments: 0,
+			pendingPayments: 0
+		};
+
+		// Get payment method distribution
+		const paymentMethods = await Payment.aggregate([
+			{ $match: { ...searchQuery, status: 'SUCCESS' } },
+			{
+				$group: {
+					_id: '$cardType',
+					count: { $sum: 1 },
+					totalAmount: { $sum: '$amount' }
+				}
+			},
+			{ $sort: { count: -1 } }
+		]);
+
+		// Get purpose distribution
+		const purposeDistribution = await Payment.aggregate([
+			{ $match: { ...searchQuery, status: 'SUCCESS' } },
+			{
+				$group: {
+					_id: '$purpose',
+					count: { $sum: 1 },
+					totalAmount: { $sum: '$amount' }
+				}
+			},
+			{ $sort: { totalAmount: -1 } }
+		]);
+
+		res.json({
+			message: 'Payments retrieved successfully',
+			payments,
+			summary,
+			paymentMethods,
+			purposeDistribution,
+			pagination: {
+				currentPage: parseInt(page),
+				totalPages: Math.ceil(total / parseInt(limit)),
+				totalItems: total,
+				itemsPerPage: parseInt(limit)
+			}
+		});
+	} catch (error) {
+		console.error('Get admin payments error:', error);
+		res.status(500).json({
+			message: 'Failed to retrieve payments',
 			error: process.env.NODE_ENV === 'development' ? error.message : undefined
 		});
 	}

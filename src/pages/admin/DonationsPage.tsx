@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,103 +20,228 @@ import {
   Search,
   Filter,
   Download,
-  ArrowUpDown
+  ArrowUpDown,
+  Loader2
 } from 'lucide-react';
+import { adminApi } from '@/services/adminApi';
+import { useToast } from '@/hooks/use-toast';
+
+interface Payment {
+  _id: string;
+  transactionId: string;
+  userId: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  amount: number;
+  purpose: string;
+  donorName: string;
+  donorEmail: string;
+  donorPhone: string;
+  message?: string;
+  isAnonymous: boolean;
+  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+  cardType?: string;
+  paymentDetails?: {
+    validationId?: string;
+    bankTransactionId?: string;
+    cardType?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface PaymentSummary {
+  totalAmount: number;
+  totalPayments: number;
+  successfulPayments: number;
+  failedPayments: number;
+  pendingPayments: number;
+}
+
+interface PaymentMethod {
+  _id: string;
+  count: number;
+  totalAmount: number;
+}
+
+interface PurposeDistribution {
+  _id: string;
+  count: number;
+  totalAmount: number;
+}
+
+interface Pagination {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+}
 
 const DonationsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPeriod, setFilterPeriod] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [summary, setSummary] = useState<PaymentSummary | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [purposeDistribution, setPurposeDistribution] = useState<PurposeDistribution[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const { toast } = useToast();
 
-  // Mock data for donations
-  const donations = [
-    {
-      id: 1,
-      donorName: "Ahmed Rahman",
-      email: "ahmed@email.com",
-      amount: 5000,
-      currency: "BDT",
-      purpose: "Emergency Fund",
-      paymentMethod: "bKash",
-      status: "Completed",
-      date: "2024-01-15",
-      transactionId: "TXN123456789"
-    },
-    {
-      id: 2,
-      donorName: "Fatima Khan",
-      email: "fatima@email.com", 
-      amount: 2500,
-      currency: "BDT",
-      purpose: "Equipment Purchase",
-      paymentMethod: "Nagad",
-      status: "Completed",
-      date: "2024-01-14",
-      transactionId: "TXN123456790"
-    },
-    {
-      id: 3,
-      donorName: "Mohammad Ali",
-      email: "mohammad@email.com",
-      amount: 10000,
-      currency: "BDT", 
-      purpose: "General Donation",
-      paymentMethod: "Bank Transfer",
-      status: "Pending",
-      date: "2024-01-13",
-      transactionId: "TXN123456791"
-    },
-    {
-      id: 4,
-      donorName: "Rashida Begum",
-      email: "rashida@email.com",
-      amount: 1500,
-      currency: "BDT",
-      purpose: "Blood Drive Campaign",
-      paymentMethod: "Card",
-      status: "Completed",
-      date: "2024-01-12",
-      transactionId: "TXN123456792"
-    },
-    {
-      id: 5,
-      donorName: "Karim Ahmed",
-      email: "karim@email.com",
-      amount: 7500,
-      currency: "BDT",
-      purpose: "Emergency Fund",
-      paymentMethod: "Rocket",
-      status: "Failed",
-      date: "2024-01-11",
-      transactionId: "TXN123456793"
+  // Fetch payments data
+  const fetchPayments = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Calculate date range based on filter period
+      let startDate;
+      let endDate;
+      
+      if (filterPeriod !== 'all') {
+        endDate = new Date().toISOString();
+        const days = filterPeriod === '7d' ? 7 : filterPeriod === '30d' ? 30 : filterPeriod === '90d' ? 90 : 365;
+        startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      }
+
+      const params: {
+        page: number;
+        limit: number;
+        status?: string;
+        startDate?: string;
+        endDate?: string;
+      } = {
+        page: currentPage,
+        limit: 20
+      };
+
+      if (filterStatus !== 'all') {
+        const statusMap: { [key: string]: string } = {
+          'completed': 'SUCCESS',
+          'pending': 'PENDING',
+          'failed': 'FAILED',
+          'cancelled': 'CANCELLED'
+        };
+        params.status = statusMap[filterStatus] || filterStatus.toUpperCase();
+      }
+
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      const response = await adminApi.getPayments(params);
+      
+      console.log('Admin payments response:', response);
+      
+      if (response.success) {
+        console.log('Setting payments data:', {
+          payments: response.data?.payments?.length,
+          summary: response.data?.summary,
+          paymentMethods: response.data?.paymentMethods?.length,
+          purposeDistribution: response.data?.purposeDistribution?.length
+        });
+        
+        setPayments(response.data?.payments || []);
+        setSummary(response.data?.summary || null);
+        setPaymentMethods(response.data?.paymentMethods || []);
+        setPurposeDistribution(response.data?.purposeDistribution || []);
+        setPagination(response.data?.pagination || null);
+      } else {
+        console.error('API response not successful:', response);
+      }
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load payment data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  }, [currentPage, filterStatus, filterPeriod, toast]);
 
-  const totalDonations = donations.reduce((sum, donation) => 
-    donation.status === "Completed" ? sum + donation.amount : sum, 0
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
+
+  // Filter payments based on search term
+  const filteredPayments = payments.filter(payment => 
+    payment.donorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.donorEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.transactionId.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
-  const completedDonations = donations.filter(d => d.status === "Completed").length;
-  const averageDonation = completedDonations > 0 ? totalDonations / completedDonations : 0;
 
+  // Helper function to get status badge
   const getStatusBadge = (status: string) => {
     switch(status) {
-      case 'Completed':
+      case 'SUCCESS':
         return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
-      case 'Pending':
+      case 'PENDING':
         return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      case 'Failed':
+      case 'FAILED':
         return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+      case 'CANCELLED':
+        return <Badge className="bg-gray-100 text-gray-800">Cancelled</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
-  const filteredDonations = donations.filter(donation => {
-    const matchesSearch = donation.donorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         donation.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || donation.status.toLowerCase() === filterStatus;
-    return matchesSearch && matchesStatus;
+  // Helper function to format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('bd-BD', {
+      style: 'currency',
+      currency: 'BDT',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Helper function to format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Helper function to get payment method display name
+  const getPaymentMethodName = (cardType?: string) => {
+    if (!cardType) return 'Unknown';
+    
+    const type = cardType.toLowerCase();
+    
+    // Handle specific SSLCommerz payment types
+    if (type.includes('bkash')) return 'bKash';
+    if (type.includes('nagad')) return 'Nagad';
+    if (type.includes('rocket')) return 'Rocket';
+    if (type.includes('dbbl') && type.includes('mobile')) return 'DBBL Mobile Banking';
+    if (type.includes('mobile') && type.includes('bank')) return 'Mobile Banking';
+    if (type.includes('visa')) return 'Visa Card';
+    if (type.includes('master')) return 'Mastercard';
+    if (type.includes('card')) return 'Credit/Debit Card';
+    if (type.includes('bank')) return 'Bank Transfer';
+    if (type.includes('upay')) return 'Upay';
+    if (type.includes('sure')) return 'SureCash';
+    
+    // If no match found, return a cleaned version
+    return cardType.split('-')[1] || cardType;
+  };
+
+  // Filter payments based on status
+  const filteredDonations = filteredPayments.filter(payment => {
+    if (filterStatus === 'all') return true;
+    const statusMap: { [key: string]: string } = {
+      'completed': 'SUCCESS',
+      'pending': 'PENDING', 
+      'failed': 'FAILED',
+      'cancelled': 'CANCELLED'
+    };
+    return payment.status === statusMap[filterStatus];
   });
 
   return (
@@ -140,11 +265,13 @@ const DonationsPage = () => {
             <DollarSign className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">৳{totalDonations.toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              {summary ? formatCurrency(summary.totalAmount) : formatCurrency(0)}
+            </div>
             <p className="text-xs text-muted-foreground">
               <span className="flex items-center gap-1 text-green-600">
                 <TrendingUp className="h-3 w-3" />
-                +12.5% from last month
+                From {summary?.successfulPayments || 0} successful payments
               </span>
             </p>
           </CardContent>
@@ -156,11 +283,11 @@ const DonationsPage = () => {
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{donations.length}</div>
+            <div className="text-2xl font-bold">{summary?.totalPayments || 0}</div>
             <p className="text-xs text-muted-foreground">
               <span className="flex items-center gap-1 text-green-600">
                 <TrendingUp className="h-3 w-3" />
-                +8.1% from last month
+                {summary?.successfulPayments || 0} completed
               </span>
             </p>
           </CardContent>
@@ -172,7 +299,12 @@ const DonationsPage = () => {
             <TrendingUp className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">৳{Math.round(averageDonation).toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              {summary && summary.successfulPayments > 0 
+                ? formatCurrency(Math.round(summary.totalAmount / summary.successfulPayments))
+                : formatCurrency(0)
+              }
+            </div>
             <p className="text-xs text-muted-foreground">Per donation amount</p>
           </CardContent>
         </Card>
@@ -183,8 +315,12 @@ const DonationsPage = () => {
             <Calendar className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">৳{Math.round(totalDonations * 0.4).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">January 2024 donations</p>
+            <div className="text-2xl font-bold">
+              {formatCurrency(summary?.totalAmount || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {summary?.pendingPayments || 0} pending, {summary?.failedPayments || 0} failed
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -198,16 +334,18 @@ const DonationsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {['Emergency Fund', 'Equipment Purchase', 'General Donation', 'Blood Drive Campaign'].map((purpose) => {
-                const purposeDonations = donations.filter(d => d.purpose === purpose && d.status === 'Completed');
-                const purposeAmount = purposeDonations.reduce((sum, d) => sum + d.amount, 0);
-                const percentage = totalDonations > 0 ? (purposeAmount / totalDonations) * 100 : 0;
+              {purposeDistribution.map((purpose) => {
+                const percentage = summary && summary.totalAmount > 0 
+                  ? (purpose.totalAmount / summary.totalAmount) * 100 
+                  : 0;
                 
                 return (
-                  <div key={purpose} className="space-y-2">
+                  <div key={purpose._id} className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>{purpose}</span>
-                      <span>৳{purposeAmount.toLocaleString()} ({percentage.toFixed(1)}%)</span>
+                      <span>{purpose._id}</span>
+                      <span>
+                        {formatCurrency(purpose.totalAmount)} ({percentage.toFixed(1)}%)
+                      </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
@@ -218,6 +356,9 @@ const DonationsPage = () => {
                   </div>
                 );
               })}
+              {purposeDistribution.length === 0 && (
+                <p className="text-sm text-muted-foreground">No donation data available</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -229,16 +370,20 @@ const DonationsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {['bKash', 'Nagad', 'Bank Transfer', 'Card', 'Rocket'].map((method) => {
-                const methodDonations = donations.filter(d => d.paymentMethod === method);
-                const methodCount = methodDonations.length;
-                const percentage = donations.length > 0 ? (methodCount / donations.length) * 100 : 0;
+              {paymentMethods.map((method) => {
+                const percentage = summary && summary.successfulPayments > 0 
+                  ? (method.count / summary.successfulPayments) * 100 
+                  : 0;
                 
                 return (
-                  <div key={method} className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{method}</span>
+                  <div key={method._id} className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {getPaymentMethodName(method._id)}
+                    </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">{methodCount} donations</span>
+                      <span className="text-sm text-muted-foreground">
+                        {method.count} donations
+                      </span>
                       <div className="w-16 bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-blue-500 h-2 rounded-full" 
@@ -249,6 +394,9 @@ const DonationsPage = () => {
                   </div>
                 );
               })}
+              {paymentMethods.length === 0 && (
+                <p className="text-sm text-muted-foreground">No payment method data available</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -312,30 +460,79 @@ const DonationsPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredDonations.map((donation) => (
-                <TableRow key={donation.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{donation.donorName}</div>
-                      <div className="text-sm text-muted-foreground">{donation.email}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    ৳{donation.amount.toLocaleString()}
-                  </TableCell>
-                  <TableCell>{donation.purpose}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{donation.paymentMethod}</Badge>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(donation.status)}</TableCell>
-                  <TableCell>{new Date(donation.date).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {donation.transactionId}
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    <p>Loading donations...</p>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : filteredDonations.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-10">
+                    <p className="text-muted-foreground">No donations found</p>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredDonations.map((donation) => (
+                  <TableRow key={donation._id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{donation.donorName}</div>
+                        <div className="text-sm text-muted-foreground">{donation.donorEmail}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(donation.amount)}
+                    </TableCell>
+                    <TableCell>{donation.purpose}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {getPaymentMethodName(donation.cardType)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(donation.status)}</TableCell>
+                    <TableCell>{formatDate(donation.createdAt)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {donation.transactionId}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
+          
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-muted-foreground">
+                Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
+                {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
+                {pagination.totalItems} donations
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm">
+                  Page {pagination.currentPage} of {pagination.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.min(pagination.totalPages, currentPage + 1))}
+                  disabled={currentPage >= pagination.totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
