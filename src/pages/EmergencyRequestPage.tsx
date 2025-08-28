@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import emergencyAPI, { EmergencyRequest } from "@/services/emergencyAPI";
 import {
 	AlertTriangle,
 	Phone,
@@ -15,33 +17,128 @@ import {
 	Zap,
 	Hospital,
 	User,
-	Siren
+	Siren,
+	Loader2
 } from "lucide-react";
 import BloodDropIcon from "@/components/BloodDropIcon";
 import BloodTypeSelector from "@/components/BloodTypeSelector";
-import LocationSelector from "@/components/LocationSelector";
 
 const EmergencyRequestPage = () => {
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const { toast } = useToast();
+	
 	const [formData, setFormData] = useState({
-		bloodType: "",
-		unitsNeeded: "",
-		patientName: "",
-		hospitalName: "",
-		contactName: "",
-		contactPhone: "",
-		location: { city: "", area: "" },
-		emergencyDetails: "",
+		patient: {
+			name: "",
+			age: "",
+			gender: "",
+			bloodType: "",
+			contactNumber: ""
+		},
+		emergency: {
+			type: "",
+			severity: "",
+			description: "",
+			timeOfIncident: new Date().toISOString()
+		},
+		hospital: {
+			name: "",
+			address: "",
+			city: "",
+			area: "",
+			contactNumber: "",
+			emergencyDepartment: "",
+			doctorInCharge: {
+				name: ""
+			}
+		},
+		bloodRequirement: {
+			units: "",
+			requiredWithin: ""
+		},
 		consentGiven: false
 	});
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		console.log("Emergency request submitted:", formData);
-		// Here you would send the emergency alert to your backend
-	};
+		
+		if (!formData.consentGiven) {
+			toast({
+				title: "Consent Required",
+				description: "Please confirm emergency consent to proceed.",
+				variant: "destructive",
+			});
+			return;
+		}
 
-	const handleLocationChange = (location: { city: string; area: string; coordinates?: { lat: number; lng: number } }) => {
-		setFormData(prev => ({ ...prev, location }));
+		setIsSubmitting(true);
+		
+		try {
+			// Prepare data for API
+			const requestData: EmergencyRequest = {
+				patient: {
+					name: formData.patient.name,
+					age: parseInt(formData.patient.age),
+					gender: formData.patient.gender as 'male' | 'female' | 'other',
+					bloodType: formData.patient.bloodType,
+					contactNumber: formData.patient.contactNumber
+				},
+				emergency: {
+					type: formData.emergency.type as 'accident' | 'surgery' | 'massive-bleeding' | 'organ-failure' | 'pregnancy-complication' | 'blood-disorder' | 'other',
+					severity: formData.emergency.severity as 'critical' | 'severe' | 'moderate',
+					description: formData.emergency.description,
+					timeOfIncident: formData.emergency.timeOfIncident
+				},
+				hospital: {
+					name: formData.hospital.name,
+					address: formData.hospital.address,
+					city: formData.hospital.city,
+					area: formData.hospital.area,
+					contactNumber: formData.hospital.contactNumber,
+					emergencyDepartment: formData.hospital.emergencyDepartment,
+					doctorInCharge: {
+						name: formData.hospital.doctorInCharge.name
+					}
+				},
+				bloodRequirement: {
+					units: parseInt(formData.bloodRequirement.units),
+					requiredWithin: parseInt(formData.bloodRequirement.requiredWithin)
+				}
+			};
+
+			const response = await emergencyAPI.createEmergencyRequest(requestData);
+			
+			if (response.success) {
+				toast({
+					title: "Emergency Alert Sent! 🚨",
+					description: `Your emergency request has been broadcast to eligible donors. ${response.data?.broadcastStatus}`,
+					duration: 8000,
+				});
+				
+				// Reset form
+				setFormData({
+					patient: { name: "", age: "", gender: "", bloodType: "", contactNumber: "" },
+					emergency: { type: "", severity: "", description: "", timeOfIncident: new Date().toISOString() },
+					hospital: { name: "", address: "", city: "", area: "", contactNumber: "", emergencyDepartment: "", doctorInCharge: { name: "" } },
+					bloodRequirement: { units: "", requiredWithin: "" },
+					consentGiven: false
+				});
+			} else {
+				toast({
+					title: "Request Failed",
+					description: response.message,
+					variant: "destructive",
+				});
+			}
+		} catch (error) {
+			toast({
+				title: "Error",
+				description: "An unexpected error occurred. Please try again.",
+				variant: "destructive",
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	return (
@@ -82,19 +179,25 @@ const EmergencyRequestPage = () => {
 							</CardHeader>
 							<CardContent className="space-y-6">
 								<BloodTypeSelector
-									selectedType={formData.bloodType}
-									onSelect={(type) => setFormData(prev => ({ ...prev, bloodType: type }))}
+									selectedType={formData.patient.bloodType}
+									onSelect={(type) => setFormData(prev => ({ 
+										...prev, 
+										patient: { ...prev.patient, bloodType: type }
+									}))}
 									label="URGENT: Required Blood Type"
 								/>
 
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 									<div className="space-y-2">
 										<Label htmlFor="unitsNeeded" className="text-emergency font-semibold">
 											Units Needed (CRITICAL)
 										</Label>
 										<Select
-											value={formData.unitsNeeded}
-											onValueChange={(value) => setFormData(prev => ({ ...prev, unitsNeeded: value }))}
+											value={formData.bloodRequirement.units}
+											onValueChange={(value) => setFormData(prev => ({ 
+												...prev, 
+												bloodRequirement: { ...prev.bloodRequirement, units: value }
+											}))}
 											required
 										>
 											<SelectTrigger className="border-emergency/30">
@@ -105,7 +208,33 @@ const EmergencyRequestPage = () => {
 												<SelectItem value="2">2 Units (CRITICAL)</SelectItem>
 												<SelectItem value="3">3 Units (CRITICAL)</SelectItem>
 												<SelectItem value="4">4 Units (CRITICAL)</SelectItem>
-												<SelectItem value="5+">5+ Units (CRITICAL)</SelectItem>
+												<SelectItem value="5">5 Units (CRITICAL)</SelectItem>
+												<SelectItem value="6">6+ Units (CRITICAL)</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div className="space-y-2">
+										<Label htmlFor="requiredWithin" className="text-emergency font-semibold">
+											Required Within (Hours)
+										</Label>
+										<Select
+											value={formData.bloodRequirement.requiredWithin}
+											onValueChange={(value) => setFormData(prev => ({ 
+												...prev, 
+												bloodRequirement: { ...prev.bloodRequirement, requiredWithin: value }
+											}))}
+											required
+										>
+											<SelectTrigger className="border-emergency/30">
+												<SelectValue placeholder="Hours" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="1">1 Hour (IMMEDIATE)</SelectItem>
+												<SelectItem value="3">3 Hours (URGENT)</SelectItem>
+												<SelectItem value="6">6 Hours (CRITICAL)</SelectItem>
+												<SelectItem value="12">12 Hours</SelectItem>
+												<SelectItem value="24">24 Hours</SelectItem>
 											</SelectContent>
 										</Select>
 									</div>
@@ -117,10 +246,127 @@ const EmergencyRequestPage = () => {
 										<Input
 											id="patientName"
 											className="border-emergency/30"
-											value={formData.patientName}
-											onChange={(e) => setFormData(prev => ({ ...prev, patientName: e.target.value }))}
+											value={formData.patient.name}
+											onChange={(e) => setFormData(prev => ({ 
+												...prev, 
+												patient: { ...prev.patient, name: e.target.value }
+											}))}
 											required
 										/>
+									</div>
+								</div>
+
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="patientAge" className="text-emergency font-semibold">
+											Patient Age
+										</Label>
+										<Input
+											id="patientAge"
+											type="number"
+											className="border-emergency/30"
+											value={formData.patient.age}
+											onChange={(e) => setFormData(prev => ({ 
+												...prev, 
+												patient: { ...prev.patient, age: e.target.value }
+											}))}
+											min="0"
+											max="150"
+											required
+										/>
+									</div>
+
+									<div className="space-y-2">
+										<Label htmlFor="patientGender" className="text-emergency font-semibold">
+											Patient Gender
+										</Label>
+										<Select
+											value={formData.patient.gender}
+											onValueChange={(value) => setFormData(prev => ({ 
+												...prev, 
+												patient: { ...prev.patient, gender: value }
+											}))}
+											required
+										>
+											<SelectTrigger className="border-emergency/30">
+												<SelectValue placeholder="Select gender" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="male">Male</SelectItem>
+												<SelectItem value="female">Female</SelectItem>
+												<SelectItem value="other">Other</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div className="space-y-2">
+										<Label htmlFor="patientContact" className="text-emergency font-semibold">
+											Patient Contact
+										</Label>
+										<Input
+											id="patientContact"
+											type="tel"
+											className="border-emergency/30"
+											value={formData.patient.contactNumber}
+											onChange={(e) => setFormData(prev => ({ 
+												...prev, 
+												patient: { ...prev.patient, contactNumber: e.target.value }
+											}))}
+											placeholder="Patient's phone number"
+											required
+										/>
+									</div>
+								</div>
+
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="emergencyType" className="text-emergency font-semibold">
+											Emergency Type
+										</Label>
+										<Select
+											value={formData.emergency.type}
+											onValueChange={(value) => setFormData(prev => ({ 
+												...prev, 
+												emergency: { ...prev.emergency, type: value }
+											}))}
+											required
+										>
+											<SelectTrigger className="border-emergency/30">
+												<SelectValue placeholder="Select emergency type" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="accident">Accident</SelectItem>
+												<SelectItem value="surgery">Surgery</SelectItem>
+												<SelectItem value="massive-bleeding">Massive Bleeding</SelectItem>
+												<SelectItem value="organ-failure">Organ Failure</SelectItem>
+												<SelectItem value="pregnancy-complication">Pregnancy Complication</SelectItem>
+												<SelectItem value="blood-disorder">Blood Disorder</SelectItem>
+												<SelectItem value="other">Other</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div className="space-y-2">
+										<Label htmlFor="emergencySeverity" className="text-emergency font-semibold">
+											Severity Level
+										</Label>
+										<Select
+											value={formData.emergency.severity}
+											onValueChange={(value) => setFormData(prev => ({ 
+												...prev, 
+												emergency: { ...prev.emergency, severity: value }
+											}))}
+											required
+										>
+											<SelectTrigger className="border-emergency/30">
+												<SelectValue placeholder="Select severity" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="critical">Critical (Life-threatening)</SelectItem>
+												<SelectItem value="severe">Severe (Urgent care needed)</SelectItem>
+												<SelectItem value="moderate">Moderate (Important but stable)</SelectItem>
+											</SelectContent>
+										</Select>
 									</div>
 								</div>
 
@@ -132,8 +378,11 @@ const EmergencyRequestPage = () => {
 										id="emergencyDetails"
 										className="border-emergency/30"
 										placeholder="Brief description of the emergency (surgery, accident, etc.)..."
-										value={formData.emergencyDetails}
-										onChange={(e) => setFormData(prev => ({ ...prev, emergencyDetails: e.target.value }))}
+										value={formData.emergency.description}
+										onChange={(e) => setFormData(prev => ({ 
+											...prev, 
+											emergency: { ...prev.emergency, description: e.target.value }
+										}))}
 										required
 									/>
 								</div>
@@ -156,14 +405,72 @@ const EmergencyRequestPage = () => {
 									<Label htmlFor="hospitalName">Hospital/Medical Facility</Label>
 									<Input
 										id="hospitalName"
-										value={formData.hospitalName}
-										onChange={(e) => setFormData(prev => ({ ...prev, hospitalName: e.target.value }))}
-										placeholder="Enter hospital name and address"
+										value={formData.hospital.name}
+										onChange={(e) => setFormData(prev => ({ 
+											...prev, 
+											hospital: { ...prev.hospital, name: e.target.value }
+										}))}
+										placeholder="Enter hospital name"
 										required
 									/>
 								</div>
 
-								<LocationSelector onLocationChange={handleLocationChange} />
+								<div className="space-y-2">
+									<Label htmlFor="hospitalAddress">Hospital Address</Label>
+									<Input
+										id="hospitalAddress"
+										value={formData.hospital.address}
+										onChange={(e) => setFormData(prev => ({ 
+											...prev, 
+											hospital: { ...prev.hospital, address: e.target.value }
+										}))}
+										placeholder="Full address of hospital"
+										required
+									/>
+								</div>
+
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="hospitalCity">City</Label>
+										<Input
+											id="hospitalCity"
+											value={formData.hospital.city}
+											onChange={(e) => setFormData(prev => ({ 
+												...prev, 
+												hospital: { ...prev.hospital, city: e.target.value }
+											}))}
+											placeholder="City"
+											required
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="hospitalArea">Area</Label>
+										<Input
+											id="hospitalArea"
+											value={formData.hospital.area}
+											onChange={(e) => setFormData(prev => ({ 
+												...prev, 
+												hospital: { ...prev.hospital, area: e.target.value }
+											}))}
+											placeholder="Area/District"
+											required
+										/>
+									</div>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="emergencyDept">Emergency Department Contact</Label>
+									<Input
+										id="emergencyDept"
+										value={formData.hospital.emergencyDepartment}
+										onChange={(e) => setFormData(prev => ({ 
+											...prev, 
+											hospital: { ...prev.hospital, emergencyDepartment: e.target.value }
+										}))}
+										placeholder="Emergency department phone or contact"
+										required
+									/>
+								</div>
 							</CardContent>
 						</Card>
 
@@ -179,24 +486,47 @@ const EmergencyRequestPage = () => {
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-6">
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 									<div className="space-y-2">
-										<Label htmlFor="contactName">Contact Name</Label>
+										<Label htmlFor="doctorName">Doctor in Charge</Label>
 										<Input
-											id="contactName"
-											value={formData.contactName}
-											onChange={(e) => setFormData(prev => ({ ...prev, contactName: e.target.value }))}
+											id="doctorName"
+											value={formData.hospital.doctorInCharge.name}
+											onChange={(e) => setFormData(prev => ({ 
+												...prev, 
+												hospital: { 
+													...prev.hospital, 
+													doctorInCharge: { ...prev.hospital.doctorInCharge, name: e.target.value }
+												}
+											}))}
+											placeholder="Doctor's name"
 											required
 										/>
 									</div>
 									<div className="space-y-2">
-										<Label htmlFor="contactPhone">Emergency Phone</Label>
+										<Label htmlFor="hospitalContact">Hospital Contact</Label>
 										<Input
-											id="contactPhone"
+											id="hospitalContact"
 											type="tel"
-											value={formData.contactPhone}
-											onChange={(e) => setFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
-											placeholder="24/7 reachable number"
+											value={formData.hospital.contactNumber}
+											onChange={(e) => setFormData(prev => ({ 
+												...prev, 
+												hospital: { ...prev.hospital, contactNumber: e.target.value }
+											}))}
+											placeholder="Hospital main number"
+											required
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="timeOfIncident">Time of Incident</Label>
+										<Input
+											id="timeOfIncident"
+											type="datetime-local"
+											value={formData.emergency.timeOfIncident.slice(0, 16)}
+											onChange={(e) => setFormData(prev => ({ 
+												...prev, 
+												emergency: { ...prev.emergency, timeOfIncident: new Date(e.target.value).toISOString() }
+											}))}
 											required
 										/>
 									</div>
@@ -242,10 +572,19 @@ const EmergencyRequestPage = () => {
 											size="lg"
 											variant="emergency"
 											className="w-full md:w-auto px-12 py-4 text-lg font-semibold"
-											disabled={!formData.consentGiven}
+											disabled={!formData.consentGiven || isSubmitting}
 										>
-											<Zap className="h-5 w-5 mr-2" />
-											SEND EMERGENCY ALERT
+											{isSubmitting ? (
+												<>
+													<Loader2 className="h-5 w-5 mr-2 animate-spin" />
+													SENDING ALERT...
+												</>
+											) : (
+												<>
+													<Zap className="h-5 w-5 mr-2" />
+													SEND EMERGENCY ALERT
+												</>
+											)}
 										</Button>
 										<p className="text-xs text-muted-foreground mt-2">
 											Emergency alerts are sent immediately and cannot be cancelled

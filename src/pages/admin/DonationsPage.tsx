@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { adminApi } from '@/services/adminApi';
 import { useToast } from '@/hooks/use-toast';
+import { BloodDropLoader } from '@/components/BloodDropLoader';
 
 interface Payment {
   _id: string;
@@ -266,12 +267,16 @@ const DonationsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {summary ? formatCurrency(summary.totalAmount) : formatCurrency(0)}
+              {loading ? (
+                <BloodDropLoader size="sm" />
+              ) : (
+                formatCurrency(summary?.totalAmount || 0)
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               <span className="flex items-center gap-1 text-green-600">
                 <TrendingUp className="h-3 w-3" />
-                From {summary?.successfulPayments || 0} successful payments
+                From {loading ? <BloodDropLoader size="sm" /> : summary?.successfulPayments || 0} successful payments
               </span>
             </p>
           </CardContent>
@@ -283,11 +288,13 @@ const DonationsPage = () => {
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summary?.totalPayments || 0}</div>
+            <div className="text-2xl font-bold">
+              {loading ? <BloodDropLoader size="sm" /> : summary?.totalPayments || 0}
+            </div>
             <p className="text-xs text-muted-foreground">
               <span className="flex items-center gap-1 text-green-600">
                 <TrendingUp className="h-3 w-3" />
-                {summary?.successfulPayments || 0} completed
+                {loading ? <BloodDropLoader size="sm" /> : summary?.successfulPayments || 0} completed
               </span>
             </p>
           </CardContent>
@@ -300,10 +307,13 @@ const DonationsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {summary && summary.successfulPayments > 0 
-                ? formatCurrency(Math.round(summary.totalAmount / summary.successfulPayments))
-                : formatCurrency(0)
-              }
+              {loading ? (
+                <BloodDropLoader size="sm" />
+              ) : (
+                summary && summary.successfulPayments > 0 
+                  ? formatCurrency(Math.round(summary.totalAmount / summary.successfulPayments))
+                  : formatCurrency(0)
+              )}
             </div>
             <p className="text-xs text-muted-foreground">Per donation amount</p>
           </CardContent>
@@ -316,10 +326,18 @@ const DonationsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(summary?.totalAmount || 0)}
+              {loading ? (
+                <BloodDropLoader size="sm" />
+              ) : (
+                formatCurrency(summary?.totalAmount || 0)
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {summary?.pendingPayments || 0} pending, {summary?.failedPayments || 0} failed
+              {loading ? (
+                <BloodDropLoader size="sm" />
+              ) : (
+                `${summary?.pendingPayments || 0} pending, ${summary?.failedPayments || 0} failed`
+              )}
             </p>
           </CardContent>
         </Card>
@@ -333,33 +351,39 @@ const DonationsPage = () => {
             <CardDescription>Distribution of donations by purpose</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {purposeDistribution.map((purpose) => {
-                const percentage = summary && summary.totalAmount > 0 
-                  ? (purpose.totalAmount / summary.totalAmount) * 100 
-                  : 0;
-                
-                return (
-                  <div key={purpose._id} className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>{purpose._id}</span>
-                      <span>
-                        {formatCurrency(purpose.totalAmount)} ({percentage.toFixed(1)}%)
-                      </span>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <BloodDropLoader size="md" text="Loading donation purposes..." />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {purposeDistribution.map((purpose) => {
+                  const percentage = summary && summary.totalAmount > 0 
+                    ? (purpose.totalAmount / summary.totalAmount) * 100 
+                    : 0;
+                  
+                  return (
+                    <div key={purpose._id} className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>{purpose._id}</span>
+                        <span>
+                          {formatCurrency(purpose.totalAmount)} ({percentage.toFixed(1)}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-primary h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-primary h-2 rounded-full transition-all duration-300" 
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-              {purposeDistribution.length === 0 && (
-                <p className="text-sm text-muted-foreground">No donation data available</p>
-              )}
-            </div>
+                  );
+                })}
+                {purposeDistribution.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">No donation data available</p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -369,35 +393,41 @@ const DonationsPage = () => {
             <CardDescription>Popular payment methods used</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {paymentMethods.map((method) => {
-                const percentage = summary && summary.successfulPayments > 0 
-                  ? (method.count / summary.successfulPayments) * 100 
-                  : 0;
-                
-                return (
-                  <div key={method._id} className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {getPaymentMethodName(method._id)}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {method.count} donations
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <BloodDropLoader size="md" text="Loading payment methods..." />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {paymentMethods.map((method) => {
+                  const percentage = summary && summary.successfulPayments > 0 
+                    ? (method.count / summary.successfulPayments) * 100 
+                    : 0;
+                  
+                  return (
+                    <div key={method._id} className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        {getPaymentMethodName(method._id)}
                       </span>
-                      <div className="w-16 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-500 h-2 rounded-full" 
-                          style={{ width: `${percentage}%` }}
-                        />
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {method.count} donations
+                        </span>
+                        <div className="w-16 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-500 h-2 rounded-full" 
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-              {paymentMethods.length === 0 && (
-                <p className="text-sm text-muted-foreground">No payment method data available</p>
-              )}
-            </div>
+                  );
+                })}
+                {paymentMethods.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No payment method data available</p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -463,8 +493,7 @@ const DonationsPage = () => {
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-10">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    <p>Loading donations...</p>
+                    <BloodDropLoader size="md" text="Loading donations..." />
                   </TableCell>
                 </TableRow>
               ) : filteredDonations.length === 0 ? (

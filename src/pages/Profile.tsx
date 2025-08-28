@@ -12,7 +12,24 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { hospitalDonationAPI, availableDonorAPI } from "@/services/donationAPI";
 import { bloodRequestAPI, BloodRequest } from "@/services/bloodRequestAPI";
+import paymentAPI from "@/services/paymentAPI";
 import BloodLoading from "@/components/ui/blood-loading";
+
+interface MoneyDonation {
+	_id: string;
+	transactionId: string;
+	amount: number;
+	purpose: string;
+	donorName: string;
+	donorEmail: string;
+	donorPhone: string;
+	message?: string;
+	isAnonymous: boolean;
+	status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'REFUNDED';
+	paymentMethod?: string;
+	createdAt: string;
+	completedAt?: string;
+}
 import {
 	User,
 	Edit,
@@ -40,6 +57,8 @@ const Profile = () => {
 	const [loadingDonations, setLoadingDonations] = useState(false);
 	const [bloodRequests, setBloodRequests] = useState<BloodRequest[]>([]);
 	const [loadingRequests, setLoadingRequests] = useState(false);
+	const [moneyDonations, setMoneyDonations] = useState<MoneyDonation[]>([]);
+	const [loadingMoneyDonations, setLoadingMoneyDonations] = useState(false);
 	const [profileData, setProfileData] = useState({
 		name: "",
 		email: "",
@@ -169,50 +188,48 @@ const Profile = () => {
 		};
 
 		fetchBloodRequests();
+		fetchMoneyDonations();
 	}, [user]);
 
-	const moneyDonations = [
-		{
-			id: 1,
-			date: "2024-01-30",
-			amount: 1000,
-			purpose: "Emergency Blood Drive",
-			method: "Credit Card",
-			status: "Completed"
-		},
-		{
-			id: 2,
-			date: "2023-12-15",
-			amount: 500,
-			purpose: "Medical Equipment",
-			method: "bKash",
-			status: "Completed"
-		},
-		{
-			id: 3,
-			date: "2023-11-20",
-			amount: 2500,
-			purpose: "General Fund",
-			method: "Bank Transfer",
-			status: "Completed"
+	// Fetch money donation history
+	const fetchMoneyDonations = async () => {
+		try {
+			setLoadingMoneyDonations(true);
+			const response = await paymentAPI.getPaymentHistory();
+			if (response.success) {
+				// Extract payments from the response data structure
+				const payments = response.data?.payments || [];
+				setMoneyDonations(payments);
+			}
+		} catch (error) {
+			console.error('Error fetching money donations:', error);
+		} finally {
+			setLoadingMoneyDonations(false);
 		}
-	];
+	};
 
 	const stats = {
 		totalDonations: donationHistory.length,
 		totalUnits: donationHistory.reduce((sum, d) => sum + d.units, 0),
-		totalMoneyDonated: moneyDonations.reduce((sum, d) => sum + d.amount, 0),
-		livesImpacted: donationHistory.length * 3,
+		totalMoneyDonated: moneyDonations
+			.filter(d => d.status === 'SUCCESS')
+			.reduce((sum, d) => sum + d.amount, 0),
+		livesImpacted: donationHistory.length + moneyDonations.filter(d => d.status === 'SUCCESS').length,
 		points: donationHistory.reduce((sum, d) => sum + d.points, 0),
 		level: "Gold Donor"
 	};
 
 	const getStatusColor = (status: string): "default" | "secondary" | "destructive" | "outline" => {
 		switch (status) {
-			case "Completed": return "default";
+			case "Completed": 
+			case "SUCCESS": 
 			case "Fulfilled": return "default";
-			case "Pending": return "secondary";
-			case "Critical": return "destructive";
+			case "Pending": 
+			case "PENDING": return "secondary";
+			case "Critical": 
+			case "FAILED": 
+			case "CANCELLED": return "destructive";
+			case "REFUNDED": return "outline";
 			default: return "secondary";
 		}
 	};
@@ -613,38 +630,59 @@ const Profile = () => {
 										</CardDescription>
 									</CardHeader>
 									<CardContent>
-										<div className="space-y-4">
-											{moneyDonations.map((donation) => (
-												<div key={donation.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-													<div className="flex items-center space-x-4">
-														<div className="bg-success/10 p-2 rounded-full">
-															<DollarSign className="h-4 w-4 text-success" />
-														</div>
-														<div>
-															<div className="font-medium">{donation.date}</div>
-															<div className="text-sm text-muted-foreground">
-																{donation.purpose} • {donation.method}
+										{loadingMoneyDonations ? (
+											<div className="flex justify-center items-center py-8">
+												<BloodLoading size="sm" />
+											</div>
+										) : moneyDonations.length === 0 ? (
+											<div className="text-center py-8 text-muted-foreground">
+												<DollarSign className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+												<p>No money donations yet</p>
+												<p className="text-sm">Your donation history will appear here</p>
+											</div>
+										) : (
+											<div className="space-y-4">
+												{moneyDonations.map((donation) => (
+													<div key={donation._id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+														<div className="flex items-center space-x-4">
+															<div className="bg-success/10 p-2 rounded-full">
+																<DollarSign className="h-4 w-4 text-success" />
+															</div>
+															<div>
+																<div className="font-medium">
+																	{new Date(donation.createdAt).toLocaleDateString('en-GB')}
+																</div>
+																<div className="text-sm text-muted-foreground">
+																	{donation.purpose || 'General Donation'} • {donation.paymentMethod || 'Payment Gateway'}
+																</div>
+																{donation.message && (
+																	<div className="text-xs text-muted-foreground italic mt-1">
+																		"{donation.message}"
+																	</div>
+																)}
 															</div>
 														</div>
-													</div>
-													<div className="text-right space-y-1">
-														<div className="font-semibold text-success">
-															৳{donation.amount.toLocaleString()}
+														<div className="text-right space-y-1">
+															<div className="font-semibold text-success">
+																৳{donation.amount.toLocaleString()}
+															</div>
+															<Badge variant={getStatusColor(donation.status)}>
+																{donation.status === 'SUCCESS' ? 'Completed' : donation.status}
+															</Badge>
 														</div>
-														<Badge variant={getStatusColor(donation.status)}>
-															{donation.status}
-														</Badge>
 													</div>
-												</div>
-											))}
-										</div>
-
-										<div className="mt-6 pt-6 border-t border-border">
-											<div className="flex items-center justify-between text-lg font-semibold">
-												<span>Total Money Donated</span>
-												<span className="text-success">৳{stats.totalMoneyDonated.toLocaleString()}</span>
+												))}
 											</div>
-										</div>
+										)}
+
+										{moneyDonations.length > 0 && (
+											<div className="mt-6 pt-6 border-t border-border">
+												<div className="flex items-center justify-between text-lg font-semibold">
+													<span>Total Money Donated</span>
+													<span className="text-success">৳{stats.totalMoneyDonated.toLocaleString()}</span>
+												</div>
+											</div>
+										)}
 									</CardContent>
 								</Card>
 							</TabsContent>
