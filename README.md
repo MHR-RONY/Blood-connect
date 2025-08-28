@@ -50,7 +50,101 @@ BloodConnect employs a modern, scalable architecture:
 2. **Geolocation Services**: Location-based donor discovery
 3. **Emergency Prioritization**: Automatic priority assignment for critical requests
 4. **Multi-stakeholder Dashboard**: Different interfaces for donors, hospitals, and admins
-5. **Real-time Notifications**: Instant alerts for urgent blood requirements## Table of Contents
+5. **Real-time Notifications**: Instant alerts for urgent blood requirements## Emergency Management System
+
+BloodConnect features a comprehensive emergency management system designed to handle critical blood requests with maximum efficiency and minimal response time. This system provides a complete workflow from emergency request submission to successful blood donation coordination.
+
+### Emergency Request Features
+
+#### User Emergency Submission
+- **Critical Patient Information**: Comprehensive patient details including medical condition
+- **Hospital Coordination**: Direct hospital information and emergency department contacts
+- **Time-sensitive Requirements**: Specify required timeline and urgency levels
+- **Blood Type Matching**: Automatic compatibility checking and donor matching
+- **Real-time Status Updates**: Live tracking of emergency request progress
+
+#### Emergency Severity Levels
+- **Critical**: Life-threatening situations requiring immediate response (< 3 hours)
+- **Severe**: Urgent medical procedures requiring blood within 6-12 hours
+- **Moderate**: Planned surgeries or treatments within 24-48 hours
+- **Low**: Non-urgent requests with flexible timelines
+
+#### Emergency Response Workflow
+1. **Request Submission**: User submits emergency request with complete details
+2. **Automatic Prioritization**: System assigns priority based on severity and timeline
+3. **Donor Notification**: Immediate alerts sent to compatible donors in the area
+4. **Admin Oversight**: Emergency management dashboard for admin monitoring
+5. **Real-time Coordination**: Direct communication between all parties
+6. **Status Tracking**: Complete workflow tracking until fulfillment
+
+### Admin Emergency Management
+
+#### Emergency Dashboard Features
+- **Real-time Emergency Statistics**: Active cases, critical alerts, and response metrics
+- **Priority-based Request Display**: Color-coded urgency levels with countdown timers
+- **Comprehensive Request Details**: Complete patient, hospital, and emergency information
+- **Status Management**: Update request statuses (active, fulfilled, partial, cancelled)
+- **Contact Integration**: Direct calling functionality for hospitals and patients
+- **Donor Alert System**: Broadcast emergency alerts to relevant donor pools
+
+#### Emergency Management Tools
+- **Details Modal**: Comprehensive view of emergency request information
+- **Status Updates**: Real-time status changes with notification system
+- **Response Tracking**: Monitor response times and fulfillment rates
+- **Emergency Analytics**: Statistical analysis of emergency patterns and outcomes
+- **Communication Hub**: Centralized communication between all stakeholders
+
+### Emergency Data Structure
+
+```javascript
+{
+  patient: {
+    name: String,
+    age: Number,
+    gender: String,
+    bloodType: String,
+    contactNumber: String
+  },
+  emergency: {
+    type: String, // 'accident', 'surgery', 'medical-condition', 'other'
+    severity: String, // 'critical', 'severe', 'moderate', 'low'
+    description: String,
+    timeOfIncident: Date
+  },
+  hospital: {
+    name: String,
+    address: String,
+    city: String,
+    area: String,
+    contactNumber: String,
+    emergencyDepartment: String,
+    doctorInCharge: {
+      name: String
+    }
+  },
+  bloodRequirement: {
+    units: Number,
+    requiredWithin: Number // hours
+  },
+  status: String, // 'active', 'fulfilled', 'partial', 'cancelled'
+  priority: Number, // Calculated based on severity and timeline
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Emergency API Endpoints
+
+```http
+POST /api/emergency              # Create new emergency request
+GET  /api/emergency              # Get emergency requests (with filtering)
+GET  /api/emergency/:id          # Get specific emergency request
+PUT  /api/emergency/:id/status   # Update emergency status
+POST /api/emergency/:id/respond  # Respond to emergency request
+POST /api/emergency/:id/alert    # Send alerts to donors
+```
+
+## Table of Contents
 
 - [Project Vision](#project-vision)
 - [Problem Statement](#problem-statement)
@@ -81,7 +175,8 @@ BloodConnect employs a modern, scalable architecture:
 ### Core Functionality
 - **User Registration & Authentication**: Secure JWT-based authentication system
 - **Blood Donation Management**: Complete donation lifecycle tracking
-- **Emergency Blood Requests**: Real-time blood request system with notifications
+- **Emergency Blood Requests**: Real-time emergency blood request system with priority management
+- **Emergency Management System**: Comprehensive admin dashboard for emergency request oversight
 - **Smart Donor Matching**: Blood type compatibility matching algorithm
 - **Inventory Management**: Blood bank stock monitoring and management
 - **Location-based Services**: Find nearby donors and blood banks
@@ -89,6 +184,9 @@ BloodConnect employs a modern, scalable architecture:
 
 ### Advanced Features
 - **Admin Dashboard**: Comprehensive admin panel for platform management
+- **Emergency Management Dashboard**: Real-time emergency request monitoring and response system
+- **Priority-based Request Handling**: Automatic emergency prioritization with severity levels
+- **Emergency Response Workflow**: Complete workflow from request submission to fulfillment
 - **Real-time Notifications**: Instant alerts for urgent blood requests
 - **Blood Type Compatibility**: Intelligent matching based on blood type compatibility
 - **Multi-role System**: User, Admin, and Moderator role management
@@ -445,6 +543,16 @@ GET  /api/auth/me          # Get current user
 POST /api/auth/logout      # User logout
 ```
 
+### Emergency Request Endpoints
+```
+GET    /api/emergency              # Get all emergency requests
+POST   /api/emergency              # Create new emergency request
+GET    /api/emergency/:id          # Get specific emergency request
+PUT    /api/emergency/:id/status   # Update emergency status
+POST   /api/emergency/:id/respond  # Respond to emergency request
+POST   /api/emergency/:id/alert    # Send alerts to donors
+```
+
 ### Blood Request Endpoints
 ```
 GET    /api/requests       # Get all blood requests
@@ -551,6 +659,45 @@ GET    /api/payment/cancelled        # Payment cancellation callback
 }
 ```
 
+### Emergency Request Model
+```javascript
+{
+  patient: {
+    name: String,
+    age: Number,
+    gender: String,
+    bloodType: String,
+    contactNumber: String
+  },
+  emergency: {
+    type: String, // 'accident', 'surgery', 'medical-condition', 'childbirth', 'other'
+    severity: String, // 'critical', 'severe', 'moderate', 'low'
+    description: String,
+    timeOfIncident: Date
+  },
+  hospital: {
+    name: String,
+    address: String,
+    city: String,
+    area: String,
+    contactNumber: String,
+    emergencyDepartment: String,
+    doctorInCharge: {
+      name: String
+    }
+  },
+  bloodRequirement: {
+    units: Number,
+    requiredWithin: Number // hours
+  },
+  status: String, // 'active', 'fulfilled', 'partial', 'cancelled'
+  priority: Number, // Auto-calculated based on severity and timeline
+  requestedBy: ObjectId,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
 ### Payment Model
 ```javascript
 {
@@ -601,6 +748,15 @@ GET    /api/payment/cancelled        # Payment cancellation callback
 - Update request statuses
 - Emergency request prioritization
 - Request analytics and reporting
+
+### Emergency Management
+- Real-time emergency request monitoring with severity-based prioritization
+- Comprehensive emergency dashboard with active case statistics
+- Emergency details modal with complete patient and hospital information
+- Status management (active, fulfilled, partial, cancelled)
+- Direct communication tools for hospitals and emergency contacts
+- Donor alert broadcasting system for critical emergencies
+- Emergency response time tracking and analytics
 
 ### Inventory Management
 - Track blood bank inventory levels
@@ -985,9 +1141,11 @@ VITE_DEBUG=true npm run dev
 ### Version 2.0 (Q4 2025)
 
 - **Mobile Application**: Native iOS and Android apps
+- **Advanced Emergency System**: AI-powered emergency severity assessment and automatic donor matching
 - **Advanced Matching**: AI-powered donor-recipient matching
 - **Telemedicine Integration**: Virtual health consultations
 - **Multi-language Support**: Support for 5+ regional languages
+- **Enhanced Emergency Features**: GPS-based emergency response and drone delivery coordination
 - **Advanced Analytics**: Predictive analytics for blood demand
 
 ### Version 2.5 (Q2 2026)
