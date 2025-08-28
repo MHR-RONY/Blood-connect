@@ -248,6 +248,41 @@ const Dashboard = () => {
 		return (totalDonations / 5) * 100;
 	};
 
+	// Calculate real achievement metrics
+	const calculateAchievements = () => {
+		const bloodDonations = donationHistory.filter(d => 
+			d.status === 'Completed' || d.status === 'Approved'
+		).length;
+		
+		const successfulMoneyDonations = paymentHistory.filter(p => 
+			p.status === 'SUCCESS'
+		).length;
+		
+		const totalLivesImpacted = bloodDonations + successfulMoneyDonations;
+		
+		// Calculate impact distribution (simple distribution for now)
+		const emergencySurgeries = Math.floor(totalLivesImpacted * 0.3);
+		const cancerPatients = Math.floor(totalLivesImpacted * 0.4);
+		const accidentVictims = Math.floor(totalLivesImpacted * 0.3);
+		
+		return {
+			bloodDonations,
+			successfulMoneyDonations,
+			totalLivesImpacted,
+			emergencySurgeries,
+			cancerPatients,
+			accidentVictims,
+			// Badge achievements
+			hasFirstDonation: bloodDonations > 0 || successfulMoneyDonations > 0,
+			hasFiveLives: totalLivesImpacted >= 5,
+			isRegularDonor: bloodDonations >= 3 || successfulMoneyDonations >= 3,
+			hasTwentyDonations: (bloodDonations + successfulMoneyDonations) >= 20,
+			donationsToTwenty: Math.max(0, 20 - (bloodDonations + successfulMoneyDonations))
+		};
+	};
+
+	const achievements = calculateAchievements();
+
 	// Handle payment validation
 	const handleValidatePayments = async () => {
 		setValidatingPayments(true);
@@ -366,20 +401,18 @@ const Dashboard = () => {
 								</CardContent>
 							</Card>
 
-							<Card>
-								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="text-sm font-medium">Lives Impacted</CardTitle>
-									<Heart className="h-4 w-4 text-primary" />
-								</CardHeader>
-								<CardContent>
-									<div className="text-2xl font-bold">{dashboardData.stats.totalDonations * 3}</div>
-									<p className="text-xs text-muted-foreground">
-										Each completed donation helps 3 people
-									</p>
-								</CardContent>
-							</Card>
-
-							<Card>
+								<Card>
+									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+										<CardTitle className="text-sm font-medium">Lives Impacted</CardTitle>
+										<Heart className="h-4 w-4 text-muted-foreground" />
+									</CardHeader>
+									<CardContent>
+										<div className="text-2xl font-bold">{achievements.totalLivesImpacted}</div>
+										<p className="text-xs text-muted-foreground">
+											Blood + Money donations
+										</p>
+									</CardContent>
+								</Card>							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 									<CardTitle className="text-sm font-medium">Donor Points</CardTitle>
 									<Award className="h-4 w-4 text-primary" />
@@ -689,25 +722,33 @@ const Dashboard = () => {
 								</CardHeader>
 								<CardContent>
 									<div className="grid grid-cols-2 gap-4">
-										<div className="text-center p-4 border border-border rounded-lg">
-											<Award className="h-8 w-8 text-primary mx-auto mb-2" />
+										<div className={`text-center p-4 border rounded-lg ${achievements.hasFirstDonation ? 'border-primary bg-primary/5' : 'border-border'}`}>
+											<Award className={`h-8 w-8 mx-auto mb-2 ${achievements.hasFirstDonation ? 'text-primary' : 'text-muted-foreground'}`} />
 											<div className="font-semibold text-sm">First Donation</div>
-											<div className="text-xs text-muted-foreground">Completed</div>
+											<div className="text-xs text-muted-foreground">
+												{achievements.hasFirstDonation ? 'Completed' : 'Not achieved'}
+											</div>
 										</div>
-										<div className="text-center p-4 border border-border rounded-lg">
-											<Users className="h-8 w-8 text-primary mx-auto mb-2" />
+										<div className={`text-center p-4 border rounded-lg ${achievements.hasFiveLives ? 'border-primary bg-primary/5' : 'border-border'}`}>
+											<Users className={`h-8 w-8 mx-auto mb-2 ${achievements.hasFiveLives ? 'text-primary' : 'text-muted-foreground'}`} />
 											<div className="font-semibold text-sm">5 Lives Saved</div>
-											<div className="text-xs text-muted-foreground">Completed</div>
+											<div className="text-xs text-muted-foreground">
+												{achievements.hasFiveLives ? 'Completed' : `${5 - achievements.totalLivesImpacted} more needed`}
+											</div>
 										</div>
-										<div className="text-center p-4 border border-border rounded-lg">
-											<TrendingUp className="h-8 w-8 text-primary mx-auto mb-2" />
+										<div className={`text-center p-4 border rounded-lg ${achievements.isRegularDonor ? 'border-primary bg-primary/5' : 'border-border'}`}>
+											<TrendingUp className={`h-8 w-8 mx-auto mb-2 ${achievements.isRegularDonor ? 'text-primary' : 'text-muted-foreground'}`} />
 											<div className="font-semibold text-sm">Regular Donor</div>
-											<div className="text-xs text-muted-foreground">Completed</div>
+											<div className="text-xs text-muted-foreground">
+												{achievements.isRegularDonor ? 'Completed' : 'Keep donating!'}
+											</div>
 										</div>
-										<div className="text-center p-4 border border-muted rounded-lg opacity-50">
-											<Droplets className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+										<div className={`text-center p-4 border rounded-lg ${achievements.hasTwentyDonations ? 'border-primary bg-primary/5' : 'border-muted opacity-50'}`}>
+											<Droplets className={`h-8 w-8 mx-auto mb-2 ${achievements.hasTwentyDonations ? 'text-primary' : 'text-muted-foreground'}`} />
 											<div className="font-semibold text-sm">20 Donations</div>
-											<div className="text-xs text-muted-foreground">8 more needed</div>
+											<div className="text-xs text-muted-foreground">
+												{achievements.hasTwentyDonations ? 'Completed' : `${achievements.donationsToTwenty} more needed`}
+											</div>
 										</div>
 									</div>
 								</CardContent>
@@ -722,20 +763,20 @@ const Dashboard = () => {
 									<div className="space-y-4">
 										<div className="flex items-center justify-between">
 											<span className="text-sm">Emergency surgeries supported</span>
-											<span className="font-semibold">8</span>
+											<span className="font-semibold">{achievements.emergencySurgeries}</span>
 										</div>
 										<div className="flex items-center justify-between">
 											<span className="text-sm">Cancer patients helped</span>
-											<span className="font-semibold">15</span>
+											<span className="font-semibold">{achievements.cancerPatients}</span>
 										</div>
 										<div className="flex items-center justify-between">
 											<span className="text-sm">Accident victims assisted</span>
-											<span className="font-semibold">13</span>
+											<span className="font-semibold">{achievements.accidentVictims}</span>
 										</div>
 										<div className="pt-4 border-t border-border">
 											<div className="flex items-center justify-between text-lg font-semibold">
 												<span>Total lives impacted</span>
-												<span className="text-primary">{dashboardData.stats.totalDonations * 3}</span>
+												<span className="text-primary">{achievements.totalLivesImpacted}</span>
 											</div>
 										</div>
 									</div>
