@@ -7,7 +7,7 @@ const Payment = require('../models/Payment');
 // SSLCommerz Configuration
 const store_id = process.env.SSLCOMMERZ_STORE_ID || 'codec6877f70ea1b0a';
 const store_passwd = process.env.SSLCOMMERZ_STORE_PASSWORD || 'codec6877f70ea1b0a@ssl';
-const is_live = false; // Set to true for production
+const is_live = process.env.SSLCOMMERZ_IS_LIVE === 'true';
 
 // Initiate Payment
 router.post('/initiate', authenticate, async (req, res) => {
