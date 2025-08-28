@@ -19,6 +19,9 @@ import FindDonorsPage from "./pages/FindDonorsPage";
 import EmergencyRequestPage from "./pages/EmergencyRequestPage";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentFailed from "./pages/PaymentFailed";
+import PaymentCancelled from "./pages/PaymentCancelled";
 import AdminLayout from "./components/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UsersPage from "./pages/admin/UsersPage";
@@ -132,6 +135,11 @@ const App = () => (
 									</ProtectedRoute>
 								}
 							/>
+
+							{/* Payment Routes */}
+							<Route path="/payment/success" element={<PaymentSuccess />} />
+							<Route path="/payment/failed" element={<PaymentFailed />} />
+							<Route path="/payment/cancelled" element={<PaymentCancelled />} />
 
 							{/* Protected Admin Routes */}
 							<Route

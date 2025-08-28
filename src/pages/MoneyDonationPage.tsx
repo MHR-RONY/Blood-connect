@@ -19,18 +19,24 @@ import {
 	Users,
 	Target,
 	Award,
-	Shield
+	Shield,
+	Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BloodDropIcon from "@/components/BloodDropIcon";
 import AnimatedCounter from "@/components/AnimatedCounter";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import paymentAPI from "@/services/paymentAPI";
 
 const MoneyDonationPage = () => {
+	const { user } = useAuth();
+	const { toast } = useToast();
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [donationData, setDonationData] = useState({
 		amount: "",
 		customAmount: "",
 		purpose: "",
-		frequency: "one-time",
 		donorName: "",
 		donorEmail: "",
 		donorPhone: "",
@@ -66,10 +72,90 @@ const MoneyDonationPage = () => {
 		{ value: "bank", label: "Bank Transfer", icon: "🏦", color: "bg-green-100 text-green-700" }
 	];
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		console.log("Donation submitted:", donationData);
-		// Here you would integrate with payment gateway
+
+		console.log('User state:', user);
+		console.log('Is authenticated:', !!user);
+
+		if (!user) {
+			toast({
+				title: "Authentication Required",
+				description: "Please login to make a donation.",
+				variant: "destructive",
+			});
+			return;
+		}
+
+		// Validate required fields
+		if (!selectedAmount || selectedAmount < 1) {
+			toast({
+				title: "Invalid Amount",
+				description: "Please enter a valid donation amount.",
+				variant: "destructive",
+			});
+			return;
+		}
+
+		if (!donationData.donorName || !donationData.donorEmail || !donationData.donorPhone) {
+			toast({
+				title: "Missing Information",
+				description: "Please fill in all required donor information.",
+				variant: "destructive",
+			});
+			return;
+		}
+
+		if (!donationData.agreeToTerms) {
+			toast({
+				title: "Terms Required",
+				description: "Please agree to the terms and conditions.",
+				variant: "destructive",
+			});
+			return;
+		}
+
+		setIsSubmitting(true);
+
+		try {
+			const paymentData = {
+				amount: selectedAmount,
+				purpose: donationData.purpose || 'general',
+				donorName: donationData.donorName,
+				donorEmail: donationData.donorEmail,
+				donorPhone: donationData.donorPhone,
+				message: donationData.message,
+				isAnonymous: donationData.isAnonymous
+			};
+
+			const response = await paymentAPI.initiatePayment(paymentData);
+
+			if (response.success) {
+				// Redirect to SSLCommerz payment gateway
+				window.location.href = response.data.gateway_url;
+			} else {
+				toast({
+					title: "Payment Error",
+					description: response.message || "Failed to initiate payment.",
+					variant: "destructive",
+				});
+			}
+		} catch (error) {
+			console.error('Payment initiation error:', error);
+			console.error('Error details:', {
+				message: error instanceof Error ? error.message : 'Unknown error',
+				user: user ? 'User exists' : 'No user',
+				selectedAmount,
+				donationData
+			});
+			toast({
+				title: "Payment Error",
+				description: error instanceof Error ? error.message : "Failed to initiate payment.",
+				variant: "destructive",
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	const selectedAmount = donationData.amount === "custom"
@@ -250,42 +336,6 @@ const MoneyDonationPage = () => {
 									</CardContent>
 								</Card>
 
-								{/* Frequency */}
-								<Card className="shadow-lg border-border/50">
-									<CardHeader>
-										<CardTitle>Donation Frequency</CardTitle>
-									</CardHeader>
-									<CardContent>
-										<RadioGroup
-											value={donationData.frequency}
-											onValueChange={(value) => setDonationData(prev => ({ ...prev, frequency: value }))}
-											className="grid grid-cols-1 md:grid-cols-3 gap-4"
-										>
-											<div className="flex items-center space-x-2 p-3 border rounded-lg">
-												<RadioGroupItem value="one-time" id="one-time" />
-												<Label htmlFor="one-time" className="flex-1">
-													<div className="font-medium">One-time</div>
-													<div className="text-xs text-muted-foreground">Single donation</div>
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2 p-3 border rounded-lg">
-												<RadioGroupItem value="monthly" id="monthly" />
-												<Label htmlFor="monthly" className="flex-1">
-													<div className="font-medium">Monthly</div>
-													<div className="text-xs text-muted-foreground">Recurring monthly</div>
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2 p-3 border rounded-lg">
-												<RadioGroupItem value="yearly" id="yearly" />
-												<Label htmlFor="yearly" className="flex-1">
-													<div className="font-medium">Yearly</div>
-													<div className="text-xs text-muted-foreground">Annual donation</div>
-												</Label>
-											</div>
-										</RadioGroup>
-									</CardContent>
-								</Card>
-
 								{/* Donor Information */}
 								<Card className="shadow-lg border-border/50">
 									<CardHeader>
@@ -419,10 +469,19 @@ const MoneyDonationPage = () => {
 												type="submit"
 												className="w-full"
 												size="lg"
-												disabled={!donationData.agreeToTerms || selectedAmount < 100}
+												disabled={!donationData.agreeToTerms || selectedAmount < 100 || isSubmitting}
 											>
-												<BloodDropIcon size="sm" className="mr-2" />
-												Donate ৳{selectedAmount.toLocaleString()} Now
+												{isSubmitting ? (
+													<>
+														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+														Processing Payment...
+													</>
+												) : (
+													<>
+														<BloodDropIcon size="sm" className="mr-2" />
+														Donate ৳{selectedAmount.toLocaleString()} Now
+													</>
+												)}
 											</Button>
 										</div>
 									</CardContent>
@@ -454,10 +513,6 @@ const MoneyDonationPage = () => {
 													</span>
 												</div>
 											)}
-											<div className="flex justify-between">
-												<span>Frequency:</span>
-												<span className="font-semibold capitalize">{donationData.frequency}</span>
-											</div>
 											{donationData.paymentMethod && (
 												<div className="flex justify-between">
 													<span>Payment:</span>

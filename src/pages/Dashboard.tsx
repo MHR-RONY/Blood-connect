@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { dashboardAPI, DashboardData } from "@/services/dashboardAPI";
 import { hospitalDonationAPI } from "@/services/donationAPI";
 import { availableDonorAPI } from "@/services/donationAPI";
+import paymentAPI from "@/services/paymentAPI";
 import { useAuth } from "@/contexts/AuthContext";
 import {
 	Heart,
@@ -27,9 +29,19 @@ import {
 } from "lucide-react";
 
 const Dashboard = () => {
+	const location = useLocation();
 	const [activeTab, setActiveTab] = useState("overview");
 	const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [validatingPayments, setValidatingPayments] = useState(false);
+	const [paymentHistory, setPaymentHistory] = useState<Array<{
+		transactionId: string;
+		amount: number;
+		purpose: string;
+		status: string;
+		createdAt: string;
+		donorName: string;
+	}>>([]);
 	const [donationHistory, setDonationHistory] = useState<Array<{
 		id: string;
 		date: string;
@@ -43,6 +55,56 @@ const Dashboard = () => {
 	}>>([]);
 	const { toast } = useToast();
 	const { user } = useAuth();
+
+	// Handle navigation state for active tab
+	useEffect(() => {
+		if (location.state?.activeTab) {
+			setActiveTab(location.state.activeTab);
+		}
+	}, [location.state]);
+
+	// Handle payment status notifications from URL parameters
+	useEffect(() => {
+		const urlParams = new URLSearchParams(location.search);
+		const paymentSuccess = urlParams.get('payment_success');
+		const paymentFailed = urlParams.get('payment_failed');
+		const paymentCancelled = urlParams.get('payment_cancelled');
+		const tranId = urlParams.get('tran_id');
+		const error = urlParams.get('error');
+		const activeTabParam = urlParams.get('activeTab');
+
+		// Set active tab from URL parameter
+		if (activeTabParam) {
+			setActiveTab(activeTabParam);
+		}
+
+		// Show payment status notifications
+		if (paymentSuccess === 'true') {
+			toast({
+				title: "Payment Successful! 🎉",
+				description: `Your donation payment has been processed successfully. Transaction ID: ${tranId}`,
+				variant: "default",
+			});
+			// Clear URL parameters after showing notification
+			window.history.replaceState({}, '', '/dashboard');
+		} else if (paymentFailed === 'true') {
+			toast({
+				title: "Payment Failed",
+				description: `Unfortunately, your payment could not be processed. ${error ? `Error: ${error}` : ''} Please try again.`,
+				variant: "destructive",
+			});
+			// Clear URL parameters after showing notification
+			window.history.replaceState({}, '', '/dashboard');
+		} else if (paymentCancelled === 'true') {
+			toast({
+				title: "Payment Cancelled",
+				description: "Your payment was cancelled. You can try again whenever you're ready.",
+				variant: "default",
+			});
+			// Clear URL parameters after showing notification
+			window.history.replaceState({}, '', '/dashboard');
+		}
+	}, [location.search, toast]);
 
 	// Fetch dashboard data
 	useEffect(() => {
@@ -134,6 +196,24 @@ const Dashboard = () => {
 		fetchDonationHistory();
 	}, [user]);
 
+	// Fetch payment history
+	useEffect(() => {
+		const fetchPaymentHistory = async () => {
+			if (!user) return;
+
+			try {
+				const response = await paymentAPI.getPaymentHistory();
+				if (response.success) {
+					setPaymentHistory(response.data.payments || []);
+				}
+			} catch (error) {
+				console.error('Error fetching payment history:', error);
+			}
+		};
+
+		fetchPaymentHistory();
+	}, [user]);
+
 	const calculateNextEligible = () => {
 		if (!dashboardData?.stats.lastDonationDate) {
 			return "Eligible now";
@@ -162,13 +242,41 @@ const Dashboard = () => {
 
 	const getLevelProgress = (totalDonations: number) => {
 		if (totalDonations >= 50) return 100;
-		if (totalDonations >= 25) return ((totalDonations - 25) / 25) * 100;
+		if (totalDonations >= 25) return 100;
 		if (totalDonations >= 15) return ((totalDonations - 15) / 10) * 100;
 		if (totalDonations >= 5) return ((totalDonations - 5) / 10) * 100;
 		return (totalDonations / 5) * 100;
 	};
 
-	const getUrgencyColor = (urgency: string): "default" | "secondary" | "destructive" | "outline" => {
+	// Handle payment validation
+	const handleValidatePayments = async () => {
+		setValidatingPayments(true);
+		try {
+			const response = await paymentAPI.validateAllPendingTransactions();
+
+			toast({
+				title: "Validation Complete",
+				description: `${response.data.updated} payments were updated.`,
+				variant: "default",
+			});
+
+			// Refresh payment history
+			const historyResponse = await paymentAPI.getPaymentHistory();
+			if (historyResponse.success) {
+				setPaymentHistory(historyResponse.data.payments);
+			}
+		} catch (error: unknown) {
+			console.error('Error validating payments:', error);
+			const errorMessage = error instanceof Error ? error.message : "Failed to validate payments. Please try again.";
+			toast({
+				title: "Validation Failed",
+				description: errorMessage,
+				variant: "destructive",
+			});
+		} finally {
+			setValidatingPayments(false);
+		}
+	}; const getUrgencyColor = (urgency: string): "default" | "secondary" | "destructive" | "outline" => {
 		switch (urgency.toLowerCase()) {
 			case "critical": return "destructive";
 			case "high": return "destructive";
@@ -220,9 +328,10 @@ const Dashboard = () => {
 				</div>
 
 				<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-					<TabsList className="grid w-full grid-cols-5">
+					<TabsList className="grid w-full grid-cols-6">
 						<TabsTrigger value="overview">Overview</TabsTrigger>
 						<TabsTrigger value="donations">My Donations</TabsTrigger>
+						<TabsTrigger value="payments">Payment History</TabsTrigger>
 						<TabsTrigger value="requests">My Requests</TabsTrigger>
 						<TabsTrigger value="nearby">Nearby Requests</TabsTrigger>
 						<TabsTrigger value="achievements">Achievements</TabsTrigger>
@@ -406,6 +515,77 @@ const Dashboard = () => {
 											</div>
 										</div>
 									))}
+								</div>
+							</CardContent>
+						</Card>
+					</TabsContent>
+
+					<TabsContent value="payments" className="space-y-6">
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<div>
+									<CardTitle>Payment History</CardTitle>
+									<CardDescription>
+										Your monetary donation history
+									</CardDescription>
+								</div>
+								<Button
+									onClick={handleValidatePayments}
+									disabled={validatingPayments || paymentHistory.length === 0}
+									size="sm"
+									variant="outline"
+								>
+									{validatingPayments ? (
+										<>
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											Validating...
+										</>
+									) : (
+										'Validate Payments'
+									)}
+								</Button>
+							</CardHeader>
+							<CardContent>
+								<div className="space-y-4">
+									{paymentHistory.length > 0 ? (
+										paymentHistory.map((payment) => (
+											<div key={payment.transactionId} className="flex items-center justify-between p-4 border border-border rounded-lg">
+												<div className="space-y-1">
+													<div className="flex items-center space-x-2">
+														<Badge variant="outline" className="font-semibold">
+															৳{payment.amount.toLocaleString()}
+														</Badge>
+														<Badge variant={payment.status === 'SUCCESS' ? 'default' : payment.status === 'PENDING' ? 'secondary' : 'destructive'}>
+															{payment.status}
+														</Badge>
+														<Badge variant="outline">
+															{payment.purpose}
+														</Badge>
+													</div>
+													<div className="text-sm text-muted-foreground">
+														Transaction ID: {payment.transactionId}
+													</div>
+													<div className="text-sm font-medium">
+														{new Date(payment.createdAt).toLocaleDateString()} • {new Date(payment.createdAt).toLocaleTimeString()}
+													</div>
+												</div>
+												<div className="text-right">
+													<div className="text-sm text-muted-foreground">
+														{payment.status === 'SUCCESS' ? 'Completed' : payment.status === 'PENDING' ? 'Processing' : 'Failed'}
+													</div>
+												</div>
+											</div>
+										))
+									) : (
+										<div className="text-center py-8 text-muted-foreground">
+											<Heart className="mx-auto h-12 w-12 mb-4 opacity-50" />
+											<h3 className="font-medium mb-2">No payments yet</h3>
+											<p className="text-sm">Your monetary donations will appear here</p>
+											<Button className="mt-4" asChild>
+												<a href="/donation">Make a Donation</a>
+											</Button>
+										</div>
+									)}
 								</div>
 							</CardContent>
 						</Card>
