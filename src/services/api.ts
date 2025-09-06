@@ -84,7 +84,10 @@ const handleApiResponse = async <T>(response: Response): Promise<ApiResponse<T>>
 
 export const authApi = {
 	// Sign up a new user
-	signUp: async (userData: SignUpRequest): Promise<ApiResponse<{ user: User; token: string }>> => {
+	signUp: async (userData: SignUpRequest): Promise<ApiResponse<
+		| { user: User; token: string } // Old flow - direct login
+		| { email: string; userId: string; requiresVerification: true } // New flow - OTP verification
+	>> => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/auth/register`, {
 				method: 'POST',
@@ -94,7 +97,10 @@ export const authApi = {
 				body: JSON.stringify(userData),
 			});
 
-			return await handleApiResponse<{ user: User; token: string }>(response);
+			return await handleApiResponse<
+				| { user: User; token: string }
+				| { email: string; userId: string; requiresVerification: true }
+			>(response);
 		} catch (error) {
 			if (error instanceof ApiError) {
 				throw error;
@@ -142,6 +148,46 @@ export const authApi = {
 		}
 	},
 
+	// Verify OTP
+	verifyOTP: async (email: string, otp: string): Promise<ApiResponse<{ user: User; token: string }>> => {
+		try {
+			const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ email, otp }),
+			});
+
+			return await handleApiResponse<{ user: User; token: string }>(response);
+		} catch (error) {
+			if (error instanceof ApiError) {
+				throw error;
+			}
+			throw new ApiError('Network error. Please check your connection.', 0);
+		}
+	},
+
+	// Resend OTP
+	resendOTP: async (email: string): Promise<ApiResponse<{ message: string }>> => {
+		try {
+			const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ email }),
+			});
+
+			return await handleApiResponse<{ message: string }>(response);
+		} catch (error) {
+			if (error instanceof ApiError) {
+				throw error;
+			}
+			throw new ApiError('Network error. Please check your connection.', 0);
+		}
+	},
+
 	// Verify phone number
 	verifyPhone: async (phone: string): Promise<ApiResponse<{ isValid: boolean }>> => {
 		try {
@@ -154,6 +200,66 @@ export const authApi = {
 			});
 
 			return await handleApiResponse<{ isValid: boolean }>(response);
+		} catch (error) {
+			if (error instanceof ApiError) {
+				throw error;
+			}
+			throw new ApiError('Network error. Please check your connection.', 0);
+		}
+	},
+
+	// Forgot password - send reset OTP
+	forgotPassword: async (email: string): Promise<ApiResponse<{ email: string }>> => {
+		try {
+			const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ email }),
+			});
+
+			return await handleApiResponse<{ email: string }>(response);
+		} catch (error) {
+			if (error instanceof ApiError) {
+				throw error;
+			}
+			throw new ApiError('Network error. Please check your connection.', 0);
+		}
+	},
+
+	// Verify password reset OTP
+	verifyResetOTP: async (email: string, otp: string): Promise<ApiResponse<{ resetToken: string; email: string }>> => {
+		try {
+			const response = await fetch(`${API_BASE_URL}/auth/verify-reset-otp`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ email, otp }),
+			});
+
+			return await handleApiResponse<{ resetToken: string; email: string }>(response);
+		} catch (error) {
+			if (error instanceof ApiError) {
+				throw error;
+			}
+			throw new ApiError('Network error. Please check your connection.', 0);
+		}
+	},
+
+	// Reset password with verified token
+	resetPassword: async (resetToken: string, newPassword: string): Promise<ApiResponse<{ message: string }>> => {
+		try {
+			const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ resetToken, newPassword }),
+			});
+
+			return await handleApiResponse<{ message: string }>(response);
 		} catch (error) {
 			if (error instanceof ApiError) {
 				throw error;

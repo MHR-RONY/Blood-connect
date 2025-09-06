@@ -486,7 +486,7 @@ export const adminApi = {
 		}
 
 		const data = await response.json();
-		
+
 		// The backend returns data directly, so we need to wrap it in the expected format
 		return {
 			success: true,

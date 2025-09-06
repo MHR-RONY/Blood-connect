@@ -101,7 +101,7 @@ class EmergencyAPI {
 	}): Promise<EmergencyResponse> {
 		try {
 			const queryParams = new URLSearchParams();
-			
+
 			if (filters) {
 				Object.entries(filters).forEach(([key, value]) => {
 					if (value) queryParams.append(key, value);

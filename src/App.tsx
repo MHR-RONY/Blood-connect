@@ -11,6 +11,7 @@ import AdminProtectedRoute from "@/components/AdminProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import BloodDonatePage from "./pages/BloodDonatePage";
 import MoneyDonationPage from "./pages/MoneyDonationPage";
@@ -66,6 +67,14 @@ const App = () => (
 								element={
 									<ProtectedRoute requireAuth={false}>
 										<Login />
+									</ProtectedRoute>
+								}
+							/>
+							<Route
+								path="/forgot-password"
+								element={
+									<ProtectedRoute requireAuth={false}>
+										<ForgotPassword />
 									</ProtectedRoute>
 								}
 							/>

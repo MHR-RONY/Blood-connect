@@ -26,7 +26,7 @@ import BloodTypeSelector from "@/components/BloodTypeSelector";
 const EmergencyRequestPage = () => {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { toast } = useToast();
-	
+
 	const [formData, setFormData] = useState({
 		patient: {
 			name: "",
@@ -61,7 +61,7 @@ const EmergencyRequestPage = () => {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		
+
 		if (!formData.consentGiven) {
 			toast({
 				title: "Consent Required",
@@ -72,7 +72,7 @@ const EmergencyRequestPage = () => {
 		}
 
 		setIsSubmitting(true);
-		
+
 		try {
 			// Prepare data for API
 			const requestData: EmergencyRequest = {
@@ -107,14 +107,14 @@ const EmergencyRequestPage = () => {
 			};
 
 			const response = await emergencyAPI.createEmergencyRequest(requestData);
-			
+
 			if (response.success) {
 				toast({
 					title: "Emergency Alert Sent! 🚨",
 					description: `Your emergency request has been broadcast to eligible donors. ${response.data?.broadcastStatus}`,
 					duration: 8000,
 				});
-				
+
 				// Reset form
 				setFormData({
 					patient: { name: "", age: "", gender: "", bloodType: "", contactNumber: "" },
@@ -180,8 +180,8 @@ const EmergencyRequestPage = () => {
 							<CardContent className="space-y-6">
 								<BloodTypeSelector
 									selectedType={formData.patient.bloodType}
-									onSelect={(type) => setFormData(prev => ({ 
-										...prev, 
+									onSelect={(type) => setFormData(prev => ({
+										...prev,
 										patient: { ...prev.patient, bloodType: type }
 									}))}
 									label="URGENT: Required Blood Type"
@@ -194,8 +194,8 @@ const EmergencyRequestPage = () => {
 										</Label>
 										<Select
 											value={formData.bloodRequirement.units}
-											onValueChange={(value) => setFormData(prev => ({ 
-												...prev, 
+											onValueChange={(value) => setFormData(prev => ({
+												...prev,
 												bloodRequirement: { ...prev.bloodRequirement, units: value }
 											}))}
 											required
@@ -220,8 +220,8 @@ const EmergencyRequestPage = () => {
 										</Label>
 										<Select
 											value={formData.bloodRequirement.requiredWithin}
-											onValueChange={(value) => setFormData(prev => ({ 
-												...prev, 
+											onValueChange={(value) => setFormData(prev => ({
+												...prev,
 												bloodRequirement: { ...prev.bloodRequirement, requiredWithin: value }
 											}))}
 											required
@@ -247,8 +247,8 @@ const EmergencyRequestPage = () => {
 											id="patientName"
 											className="border-emergency/30"
 											value={formData.patient.name}
-											onChange={(e) => setFormData(prev => ({ 
-												...prev, 
+											onChange={(e) => setFormData(prev => ({
+												...prev,
 												patient: { ...prev.patient, name: e.target.value }
 											}))}
 											required
@@ -266,8 +266,8 @@ const EmergencyRequestPage = () => {
 											type="number"
 											className="border-emergency/30"
 											value={formData.patient.age}
-											onChange={(e) => setFormData(prev => ({ 
-												...prev, 
+											onChange={(e) => setFormData(prev => ({
+												...prev,
 												patient: { ...prev.patient, age: e.target.value }
 											}))}
 											min="0"
@@ -282,8 +282,8 @@ const EmergencyRequestPage = () => {
 										</Label>
 										<Select
 											value={formData.patient.gender}
-											onValueChange={(value) => setFormData(prev => ({ 
-												...prev, 
+											onValueChange={(value) => setFormData(prev => ({
+												...prev,
 												patient: { ...prev.patient, gender: value }
 											}))}
 											required
@@ -308,8 +308,8 @@ const EmergencyRequestPage = () => {
 											type="tel"
 											className="border-emergency/30"
 											value={formData.patient.contactNumber}
-											onChange={(e) => setFormData(prev => ({ 
-												...prev, 
+											onChange={(e) => setFormData(prev => ({
+												...prev,
 												patient: { ...prev.patient, contactNumber: e.target.value }
 											}))}
 											placeholder="Patient's phone number"
@@ -325,8 +325,8 @@ const EmergencyRequestPage = () => {
 										</Label>
 										<Select
 											value={formData.emergency.type}
-											onValueChange={(value) => setFormData(prev => ({ 
-												...prev, 
+											onValueChange={(value) => setFormData(prev => ({
+												...prev,
 												emergency: { ...prev.emergency, type: value }
 											}))}
 											required
@@ -352,8 +352,8 @@ const EmergencyRequestPage = () => {
 										</Label>
 										<Select
 											value={formData.emergency.severity}
-											onValueChange={(value) => setFormData(prev => ({ 
-												...prev, 
+											onValueChange={(value) => setFormData(prev => ({
+												...prev,
 												emergency: { ...prev.emergency, severity: value }
 											}))}
 											required
@@ -379,8 +379,8 @@ const EmergencyRequestPage = () => {
 										className="border-emergency/30"
 										placeholder="Brief description of the emergency (surgery, accident, etc.)..."
 										value={formData.emergency.description}
-										onChange={(e) => setFormData(prev => ({ 
-											...prev, 
+										onChange={(e) => setFormData(prev => ({
+											...prev,
 											emergency: { ...prev.emergency, description: e.target.value }
 										}))}
 										required
@@ -406,8 +406,8 @@ const EmergencyRequestPage = () => {
 									<Input
 										id="hospitalName"
 										value={formData.hospital.name}
-										onChange={(e) => setFormData(prev => ({ 
-											...prev, 
+										onChange={(e) => setFormData(prev => ({
+											...prev,
 											hospital: { ...prev.hospital, name: e.target.value }
 										}))}
 										placeholder="Enter hospital name"
@@ -420,8 +420,8 @@ const EmergencyRequestPage = () => {
 									<Input
 										id="hospitalAddress"
 										value={formData.hospital.address}
-										onChange={(e) => setFormData(prev => ({ 
-											...prev, 
+										onChange={(e) => setFormData(prev => ({
+											...prev,
 											hospital: { ...prev.hospital, address: e.target.value }
 										}))}
 										placeholder="Full address of hospital"
@@ -435,8 +435,8 @@ const EmergencyRequestPage = () => {
 										<Input
 											id="hospitalCity"
 											value={formData.hospital.city}
-											onChange={(e) => setFormData(prev => ({ 
-												...prev, 
+											onChange={(e) => setFormData(prev => ({
+												...prev,
 												hospital: { ...prev.hospital, city: e.target.value }
 											}))}
 											placeholder="City"
@@ -448,8 +448,8 @@ const EmergencyRequestPage = () => {
 										<Input
 											id="hospitalArea"
 											value={formData.hospital.area}
-											onChange={(e) => setFormData(prev => ({ 
-												...prev, 
+											onChange={(e) => setFormData(prev => ({
+												...prev,
 												hospital: { ...prev.hospital, area: e.target.value }
 											}))}
 											placeholder="Area/District"
@@ -463,8 +463,8 @@ const EmergencyRequestPage = () => {
 									<Input
 										id="emergencyDept"
 										value={formData.hospital.emergencyDepartment}
-										onChange={(e) => setFormData(prev => ({ 
-											...prev, 
+										onChange={(e) => setFormData(prev => ({
+											...prev,
 											hospital: { ...prev.hospital, emergencyDepartment: e.target.value }
 										}))}
 										placeholder="Emergency department phone or contact"
@@ -492,10 +492,10 @@ const EmergencyRequestPage = () => {
 										<Input
 											id="doctorName"
 											value={formData.hospital.doctorInCharge.name}
-											onChange={(e) => setFormData(prev => ({ 
-												...prev, 
-												hospital: { 
-													...prev.hospital, 
+											onChange={(e) => setFormData(prev => ({
+												...prev,
+												hospital: {
+													...prev.hospital,
 													doctorInCharge: { ...prev.hospital.doctorInCharge, name: e.target.value }
 												}
 											}))}
@@ -509,8 +509,8 @@ const EmergencyRequestPage = () => {
 											id="hospitalContact"
 											type="tel"
 											value={formData.hospital.contactNumber}
-											onChange={(e) => setFormData(prev => ({ 
-												...prev, 
+											onChange={(e) => setFormData(prev => ({
+												...prev,
 												hospital: { ...prev.hospital, contactNumber: e.target.value }
 											}))}
 											placeholder="Hospital main number"
@@ -523,8 +523,8 @@ const EmergencyRequestPage = () => {
 											id="timeOfIncident"
 											type="datetime-local"
 											value={formData.emergency.timeOfIncident.slice(0, 16)}
-											onChange={(e) => setFormData(prev => ({ 
-												...prev, 
+											onChange={(e) => setFormData(prev => ({
+												...prev,
 												emergency: { ...prev.emergency, timeOfIncident: new Date(e.target.value).toISOString() }
 											}))}
 											required

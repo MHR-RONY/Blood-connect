@@ -174,6 +174,8 @@ POST /api/emergency/:id/alert    # Send alerts to donors
 
 ### Core Functionality
 - **User Registration & Authentication**: Secure JWT-based authentication system
+- **OTP Email Verification**: Two-factor email verification for secure account activation
+- **Forgot Password System**: Complete password reset workflow with OTP verification
 - **Blood Donation Management**: Complete donation lifecycle tracking
 - **Emergency Blood Requests**: Real-time emergency blood request system with priority management
 - **Emergency Management System**: Comprehensive admin dashboard for emergency request oversight
@@ -181,6 +183,15 @@ POST /api/emergency/:id/alert    # Send alerts to donors
 - **Inventory Management**: Blood bank stock monitoring and management
 - **Location-based Services**: Find nearby donors and blood banks
 - **Donation History**: Complete tracking of user donation records
+
+### Authentication & Security Features
+- **Email OTP Verification**: Secure 6-digit OTP verification for account activation
+- **Password Reset Flow**: Multi-step password reset with email OTP confirmation
+- **JWT Authentication**: Secure token-based authentication with refresh capabilities
+- **Account Security**: Comprehensive account protection with email verification requirements
+- **Password Visibility Toggle**: User-friendly password input with show/hide functionality
+- **Email Integration**: Automated email service with professional templates
+- **Security Validation**: Multi-layer security with input validation and rate limiting
 
 ### Advanced Features
 - **Admin Dashboard**: Comprehensive admin panel for platform management
@@ -310,10 +321,10 @@ NODE_ENV=development
 # Frontend URL (for CORS)
 FRONTEND_URL=http://localhost:8080
 
-# Email Configuration (Optional)
-EMAIL_SERVICE=gmail
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASS=your_app_password
+# Email Configuration (Required for OTP verification)
+MAILGUN_API_KEY=your_mailgun_api_key
+MAILGUN_DOMAIN=your_mailgun_domain
+FROM_EMAIL=BloodConnect <noreply@yourdomain.com>
 
 # File Upload Configuration
 MAX_FILE_SIZE=5MB
@@ -537,10 +548,16 @@ npm test             # Run tests
 
 ### Authentication Endpoints
 ```
-POST /api/auth/register    # User registration
-POST /api/auth/login       # User login
-GET  /api/auth/me          # Get current user
-POST /api/auth/logout      # User logout
+POST /api/auth/register         # User registration with OTP email
+POST /api/auth/verify-otp       # Verify email OTP for account activation
+POST /api/auth/resend-otp       # Resend OTP email for verification
+POST /api/auth/login            # User login (requires verified account)
+POST /api/auth/forgot-password  # Initiate password reset with email OTP
+POST /api/auth/verify-reset-otp # Verify password reset OTP
+POST /api/auth/reset-password   # Complete password reset with new password
+GET  /api/auth/me               # Get current user profile
+POST /api/auth/logout           # User logout
+GET  /api/auth/check-email      # Check if email exists in system
 ```
 
 ### Emergency Request Endpoints
@@ -625,6 +642,10 @@ GET    /api/payment/cancelled        # Payment cancellation callback
   isAvailableDonor: Boolean,
   role: String, // 'user', 'admin', 'moderator'
   isVerified: Boolean,
+  otpCode: String, // 6-digit OTP for email verification
+  otpExpires: Date, // OTP expiration timestamp
+  resetPasswordOTP: String, // OTP for password reset
+  resetPasswordOTPExpires: Date, // Password reset OTP expiration
   lastDonationDate: Date,
   totalDonations: Number,
   createdAt: Date,
@@ -859,6 +880,7 @@ FRONTEND_URL=https://your-frontend-domain.com
 - **Mongoose** - MongoDB object modeling
 - **JWT** - JSON Web Token authentication
 - **bcryptjs** - Password hashing
+- **Mailgun** - Email service for OTP verification and notifications
 - **express-validator** - Input validation middleware
 - **helmet** - Security middleware
 - **cors** - Cross-origin resource sharing
@@ -912,6 +934,34 @@ We welcome contributions from the community! Please follow these steps:
 - Ensure all tests pass before submitting PR
 
 ## User Workflows
+
+### User Registration & Authentication
+
+1. **Account Registration**
+   - Fill registration form with personal details
+   - Submit complete health and contact information
+   - Receive 6-digit OTP via email
+   - Verify email address with OTP code
+   - Account activated upon successful verification
+
+2. **Login Process**
+   - Enter email and password
+   - System validates credentials and account status
+   - Access granted only for verified accounts
+   - JWT token issued for secure session management
+
+3. **Forgot Password Workflow**
+   - Enter email address on forgot password page
+   - Receive password reset OTP via email
+   - Enter 6-digit OTP for verification
+   - Set new password with confirmation
+   - Password updated securely with encryption
+
+4. **Account Security Features**
+   - Email verification requirement for all new accounts
+   - Secure password reset with OTP confirmation
+   - Password visibility toggle for user convenience
+   - Session management with JWT authentication
 
 ### For Blood Donors
 

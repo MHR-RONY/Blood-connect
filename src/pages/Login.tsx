@@ -260,15 +260,6 @@ const Login = () => {
 										Sign up here
 									</Link>
 								</div>
-
-								<div className="text-center">
-									<Link
-										to="/admin/login"
-										className="text-xs text-muted-foreground hover:text-foreground"
-									>
-										Administrator access
-									</Link>
-								</div>
 							</form>
 						</CardContent>
 					</Card>

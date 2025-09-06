@@ -221,13 +221,13 @@ const Profile = () => {
 
 	const getStatusColor = (status: string): "default" | "secondary" | "destructive" | "outline" => {
 		switch (status) {
-			case "Completed": 
-			case "SUCCESS": 
+			case "Completed":
+			case "SUCCESS":
 			case "Fulfilled": return "default";
-			case "Pending": 
+			case "Pending":
 			case "PENDING": return "secondary";
-			case "Critical": 
-			case "FAILED": 
+			case "Critical":
+			case "FAILED":
 			case "CANCELLED": return "destructive";
 			case "REFUNDED": return "outline";
 			default: return "secondary";

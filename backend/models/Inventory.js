@@ -118,7 +118,6 @@ inventorySchema.pre('save', function (next) {
 });
 
 // Create indexes
-inventorySchema.index({ bloodType: 1 });
 inventorySchema.index({ 'batches.expiryDate': 1 });
 inventorySchema.index({ 'batches.status': 1 });
 

@@ -536,41 +536,41 @@ router.get('/payments', [
 			{
 				$group: {
 					_id: null,
-					totalAmount: { 
-						$sum: { 
-							$cond: { 
-								if: { $eq: ['$status', 'SUCCESS'] }, 
-								then: '$amount', 
-								else: 0 
-							} 
-						} 
+					totalAmount: {
+						$sum: {
+							$cond: {
+								if: { $eq: ['$status', 'SUCCESS'] },
+								then: '$amount',
+								else: 0
+							}
+						}
 					},
 					totalPayments: { $sum: 1 },
 					successfulPayments: {
-						$sum: { 
-							$cond: { 
-								if: { $eq: ['$status', 'SUCCESS'] }, 
-								then: 1, 
-								else: 0 
-							} 
+						$sum: {
+							$cond: {
+								if: { $eq: ['$status', 'SUCCESS'] },
+								then: 1,
+								else: 0
+							}
 						}
 					},
 					failedPayments: {
-						$sum: { 
-							$cond: { 
-								if: { $eq: ['$status', 'FAILED'] }, 
-								then: 1, 
-								else: 0 
-							} 
+						$sum: {
+							$cond: {
+								if: { $eq: ['$status', 'FAILED'] },
+								then: 1,
+								else: 0
+							}
 						}
 					},
 					pendingPayments: {
-						$sum: { 
-							$cond: { 
-								if: { $eq: ['$status', 'PENDING'] }, 
-								then: 1, 
-								else: 0 
-							} 
+						$sum: {
+							$cond: {
+								if: { $eq: ['$status', 'PENDING'] },
+								then: 1,
+								else: 0
+							}
 						}
 					}
 				}

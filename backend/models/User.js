@@ -93,6 +93,10 @@ const userSchema = new mongoose.Schema({
 		default: false
 	},
 	verificationToken: String,
+	otpCode: String,
+	otpExpires: Date,
+	resetPasswordOTP: String,
+	resetPasswordOTPExpires: Date,
 	passwordResetToken: String,
 	passwordResetExpires: Date,
 	lastDonationDate: {

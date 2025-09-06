@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { User, Mail, Lock, Phone, Calendar, UserCheck, Loader2, AlertCircle, Check, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Phone, Calendar, UserCheck, Loader2, AlertCircle, Check, Eye, EyeOff, User as UserIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import BloodTypeSelector from "@/components/BloodTypeSelector";
@@ -14,8 +14,9 @@ import LocationSelector from "@/components/LocationSelector";
 import Header from "@/components/Header";
 import BloodDropIcon from "@/components/BloodDropIcon";
 import BloodDropLoader from "@/components/BloodDropLoader";
+import OTPVerification from "@/components/OTPVerification";
 import { validateSignUpForm, formatPhoneNumber, sanitizeInput } from "@/utils/validation";
-import { authApi, tokenStorage, ApiError } from "@/services/api";
+import { authApi, tokenStorage, ApiError, User } from "@/services/api";
 import type { SignUpFormData } from "@/utils/validation";
 
 const SignUp = () => {
@@ -45,6 +46,10 @@ const SignUp = () => {
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+	// OTP verification state
+	const [showOTPVerification, setShowOTPVerification] = useState(false);
+	const [userEmail, setUserEmail] = useState("");
 
 	// Real-time email validation
 	useEffect(() => {
@@ -185,25 +190,52 @@ const SignUp = () => {
 			// Submit to API
 			const response = await authApi.signUp(apiData);
 
+			// Debug logging
+			console.log('Signup response:', response);
+			console.log('Response data:', response.data);
+			console.log('Has requiresVerification:', 'requiresVerification' in (response.data || {}));
+
 			if (response.success && response.data) {
-				// Success notification first
-				toast({
-					title: "Account Created Successfully! 🎉",
-					description: `Welcome to Blood Connect, ${formData.firstName}! Your account has been created and you're now logged in.`,
-				});
+				// Check if user needs to verify email (new OTP flow)
+				if ('requiresVerification' in response.data && response.data.requiresVerification) {
+					// Success notification for registration
+					toast({
+						title: "Registration Successful! 📧",
+						description: `Hi ${formData.firstName}! We've sent a verification code to ${response.data.email}. Please check your email.`,
+					});
 
-				// Store token and login user - this will trigger auth state change
-				login(response.data.token, response.data.user);
+					// Calculate remaining time to show loading animation
+					const elapsedTime = Date.now() - startTime;
+					const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
 
-				// Calculate remaining time to show loading animation
-				const elapsedTime = Date.now() - startTime;
-				const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
+					// Store email for OTP verification and show OTP screen
+					setTimeout(() => {
+						const otpData = response.data as { email: string; userId: string; requiresVerification: true };
+						setUserEmail(otpData.email);
+						setShowOTPVerification(true);
+						setIsSubmitting(false);
+					}, remainingTime);
+				} else {
+					// Old flow - direct login (for backward compatibility)
+					const userData = response.data as { user: User; token: string };
+					toast({
+						title: "Account Created Successfully! 🎉",
+						description: `Welcome to Blood Connect, ${formData.firstName}! Your account has been created and you're now logged in.`,
+					});
 
-				// Ensure loading is visible for at least 1.5 seconds
-				setTimeout(() => {
-					setIsSubmitting(false);
-					navigate('/', { replace: true });
-				}, remainingTime);
+					// Store token and login user - this will trigger auth state change
+					login(userData.token, userData.user);
+
+					// Calculate remaining time to show loading animation
+					const elapsedTime = Date.now() - startTime;
+					const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
+
+					// Ensure loading is visible for at least 1.5 seconds
+					setTimeout(() => {
+						setIsSubmitting(false);
+						navigate('/', { replace: true });
+					}, remainingTime);
+				}
 			} else {
 				// Handle case where response doesn't have expected structure
 				const elapsedTime = Date.now() - startTime;
@@ -279,6 +311,41 @@ const SignUp = () => {
 		return null;
 	};
 
+	// Show OTP verification screen if needed
+	if (showOTPVerification && userEmail) {
+		return (
+			<div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-950/20 dark:to-pink-950/20 flex flex-col">
+				<Header />
+
+				<div className="flex-1 flex items-center justify-center p-6">
+					<div className="w-full max-w-md">
+						<OTPVerification
+							email={userEmail}
+							onVerificationSuccess={(token, user) => {
+								// Store token and login user
+								login(token, user);
+
+								toast({
+									title: "Email Verified Successfully! 🎉",
+									description: `Welcome to Blood Connect, ${user.firstName}! Your account has been verified and you're now logged in.`,
+								});
+
+								// Navigate to dashboard
+								navigate('/', { replace: true });
+							}}
+							onBackToSignup={() => {
+								setShowOTPVerification(false);
+								setUserEmail("");
+							}}
+							isLoading={isSubmitting}
+							setIsLoading={setIsSubmitting}
+						/>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-950/20 dark:to-pink-950/20 flex flex-col">
 			<Header />
@@ -304,7 +371,7 @@ const SignUp = () => {
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
 										<Label htmlFor="firstName" className="text-sm font-medium flex items-center gap-2">
-											<User className="w-4 h-4" />
+											<UserIcon className="w-4 h-4" />
 											First Name *
 										</Label>
 										<div className="relative">
@@ -330,7 +397,7 @@ const SignUp = () => {
 
 									<div className="space-y-2">
 										<Label htmlFor="lastName" className="text-sm font-medium flex items-center gap-2">
-											<User className="w-4 h-4" />
+											<UserIcon className="w-4 h-4" />
 											Last Name *
 										</Label>
 										<div className="relative">
