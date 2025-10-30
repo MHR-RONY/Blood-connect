@@ -460,7 +460,7 @@ const sendPasswordResetOTPEmail = async (email, firstName, otp) => {
 
               <div class="content">
                   <div class="warning-icon">🔒</div>
-                  
+
                   <h2 style="color: #333; margin-bottom: 20px;">Password Reset Request</h2>
 
                   <p class="message">

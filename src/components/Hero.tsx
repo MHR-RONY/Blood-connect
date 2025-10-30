@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { MapPin, Users, Clock } from "lucide-react";
-import heroImage from "@/assets/hero-blood-donation.jpg";
+const heroImage = "https://res.cloudinary.com/dreby3qi3/image/upload/v1761851413/ravi25_may_5_jruyhv.jpg";
 import BloodDropIcon from "@/components/BloodDropIcon";
 import AnimatedCounter from "@/components/AnimatedCounter";
 
@@ -62,7 +62,7 @@ const Hero = () => {
 
 					{/* Image */}
 					<div className="relative">
-						<div className="rounded-2xl overflow-hidden shadow-2xl">
+						<div className="rounded-2xl overflow-hidden shadow-2xl" style={{boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)"}}>
 							<img
 								src={heroImage}
 								alt="Blood donation in progress"

@@ -59,7 +59,7 @@ const ForgotPassword = () => {
 			}
 		} catch (error) {
 			console.error('Forgot password error:', error);
-			
+
 			if (error instanceof ApiError) {
 				toast({
 					title: "Error",
@@ -94,7 +94,7 @@ const ForgotPassword = () => {
 			}
 		} catch (error) {
 			console.error('OTP verification error:', error);
-			
+
 			if (error instanceof ApiError) {
 				toast({
 					title: "Verification Failed",
@@ -170,7 +170,7 @@ const ForgotPassword = () => {
 			}
 		} catch (error) {
 			console.error('Password reset error:', error);
-			
+
 			if (error instanceof ApiError) {
 				toast({
 					title: "Reset Failed",
