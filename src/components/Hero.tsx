@@ -62,7 +62,7 @@ const Hero = () => {
 
 					{/* Image */}
 					<div className="relative">
-						<div className="rounded-2xl overflow-hidden shadow-2xl" style={{boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)"}}>
+						<div className="rounded-2xl overflow-hidden shadow-2xl" style={{ boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)" }}>
 							<img
 								src={heroImage}
 								alt="Blood donation in progress"

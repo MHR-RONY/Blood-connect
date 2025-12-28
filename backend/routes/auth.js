@@ -407,16 +407,6 @@ router.post('/login', loginValidation, validate, async (req, res) => {
 			});
 		}
 
-		// Check if email is verified
-		if (!user.isVerified) {
-			return res.status(401).json({
-				success: false,
-				message: 'Please verify your email address before logging in.',
-				requiresVerification: true,
-				email: user.email
-			});
-		}
-
 		// Update last login
 		user.lastLogin = new Date();
 		await user.save();
@@ -578,14 +568,6 @@ router.post('/forgot-password', [
 			});
 		}
 
-		// Check if user is verified
-		if (!user.isVerified) {
-			return res.status(400).json({
-				success: false,
-				message: 'Please verify your email first before resetting password'
-			});
-		}
-
 		// Generate OTP for password reset
 		const otp = generateOTP();
 		user.resetPasswordOTP = otp;
@@ -733,11 +715,13 @@ router.post('/reset-password', [
 			});
 		}
 
-		// Update password
-		user.password = newPassword; // Will be hashed by pre-save middleware
+		// Hash the new password
+		const bcrypt = require('bcryptjs');
+		const salt = await bcrypt.genSalt(12);
+		user.password = await bcrypt.hash(newPassword, salt);
 		user.resetPasswordOTP = undefined;
 		user.resetPasswordOTPExpires = undefined;
-		await user.save();
+		await user.save({ validateBeforeSave: false });
 
 		res.json({
 			success: true,
