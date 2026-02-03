@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build": "echo 'No build step required for backend'",
     "dev": "nodemon server.js",
     "test": "jest",
     "create-admin": "node scripts/createAdmin.js",
