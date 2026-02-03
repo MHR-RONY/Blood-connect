@@ -787,7 +787,9 @@ GET    /api/payment/cancelled        # Payment cancellation callback
 
 ## Deployment
 
-### Vercel Deployment (Recommended for Frontend)
+### Frontend Deployment (Vercel - Recommended)
+
+#### Quick Deploy to Vercel
 
 1. **Install Vercel CLI**:
    ```bash
@@ -799,67 +801,307 @@ GET    /api/payment/cancelled        # Payment cancellation callback
    vercel --prod
    ```
 
-### Heroku Deployment (Backend)
-
-1. **Install Heroku CLI** and login:
-   ```bash
-   heroku login
+3. **Configure Environment Variables** in Vercel Dashboard:
+   ```env
+   VITE_API_BASE_URL=https://your-backend-url.onrender.com/api
    ```
 
-2. **Create Heroku App**:
-   ```bash
-   heroku create bloodconnect-api
-   ```
+### Backend Deployment (Render - Recommended)
 
-3. **Set Environment Variables**:
-   ```bash
-   heroku config:set MONGODB_URI=your_mongodb_uri
-   heroku config:set JWT_SECRET=your_jwt_secret
-   ```
+Render provides a modern, reliable platform for deploying Node.js applications with excellent free tier options and better performance than traditional platforms.
 
-4. **Deploy**:
-   ```bash
-   git subtree push --prefix backend heroku main
-   ```
+#### Prerequisites
+
+- A [Render account](https://render.com) (sign up with your GitHub account)
+- Your code pushed to GitHub repository
+- All environment variables ready (MongoDB URI, email credentials, etc.)
+
+#### Deployment Steps
+
+**Step 1: Prepare Your Repository**
+
+Ensure your code is pushed to GitHub:
+```bash
+git add .
+git commit -m "Prepare for Render deployment"
+git push origin main
+```
+
+**Step 2: Create Web Service on Render**
+
+1. Go to [Render Dashboard](https://dashboard.render.com/)
+2. Click **"New +"** → **"Web Service"**
+3. Connect your GitHub repository: `MHR-RONY/Blood-connect`
+4. Render will detect your repository
+
+**Step 3: Configure Service Settings**
+
+Fill in the following configuration:
+
+- **Name**: `blood-connect-backend` (or your preferred name)
+- **Region**: Choose closest region (Singapore, Oregon, Frankfurt, Ohio)
+- **Branch**: `main`
+- **Root Directory**: `backend`
+- **Runtime**: `Node`
+- **Build Command**: `npm install`
+- **Start Command**: `npm start`
+- **Plan**: `Free` (or upgrade to paid plans for production)
+
+**Step 4: Add Environment Variables**
+
+Click **"Advanced"** and add the following environment variables:
+
+**Core Settings:**
+```env
+NODE_ENV=production
+PORT=10000
+```
+
+**Database Configuration:**
+```env
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/bloodconnect?retryWrites=true&w=majority
+```
+
+**JWT Authentication:**
+```env
+JWT_SECRET=your_very_long_and_secure_secret_key_at_least_32_characters
+JWT_EXPIRE=7d
+```
+
+**Frontend URL:**
+```env
+FRONTEND_URL=https://your-frontend.vercel.app
+```
+
+**Email Configuration (Gmail):**
+```env
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your.email@gmail.com
+EMAIL_PASS=your_16_character_app_password
+```
+
+**Cloudinary Configuration:**
+```env
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=123456789012345
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+**Optional Services:**
+```env
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+SMS_API_KEY=your_sms_api_key
+SMS_SENDER_ID=BloodConnect
+SSLCOMMERZ_STORE_ID=your_store_id
+SSLCOMMERZ_STORE_PASSWORD=your_store_password
+SSLCOMMERZ_IS_LIVE=false
+```
+
+**Step 5: Deploy**
+
+1. Click **"Create Web Service"**
+2. Render will automatically:
+   - Clone your repository
+   - Install dependencies
+   - Start your application
+3. Wait for deployment to complete (usually 2-5 minutes)
+
+**Step 6: Get Your Backend URL**
+
+Once deployed, you'll receive a URL like:
+```
+https://blood-connect-backend.onrender.com
+```
+
+#### Alternative: Deploy via Blueprint (render.yaml)
+
+For infrastructure-as-code deployment, a `render.yaml` file is included in the backend folder:
+
+1. Go to [Render Dashboard](https://dashboard.render.com/)
+2. Click **"New +"** → **"Blueprint"**
+3. Connect your repository
+4. Select the `render.yaml` file from backend folder
+5. Add the required environment variables
+6. Click **"Apply"**
+
+#### Post-Deployment Configuration
+
+**1. Update Frontend Environment Variables**
+
+Update your frontend `.env` file to point to Render:
+```env
+VITE_API_BASE_URL=https://blood-connect-backend.onrender.com/api
+```
+
+**2. Test Your Deployment**
+
+Test the health endpoint:
+```bash
+curl https://blood-connect-backend.onrender.com/api/health
+```
+
+Expected response:
+```json
+{
+  "status": "OK",
+  "message": "Blood Connect API is running",
+  "timestamp": "2026-02-03T..."
+}
+```
+
+**3. Configure MongoDB Atlas**
+
+Whitelist Render's IP addresses in MongoDB Atlas:
+- Go to MongoDB Atlas → Network Access
+- Add IP: `0.0.0.0/0` (allows all IPs) or specific Render IPs
+- Ensure database user has read/write permissions
+
+**4. Update CORS Settings (if needed)**
+
+If you encounter CORS errors, verify your backend `server.js` includes your frontend URL:
+```javascript
+origin: [
+  'http://localhost:5173',
+  'https://your-frontend-domain.vercel.app',
+  process.env.FRONTEND_URL
+]
+```
+
+#### Monitoring & Maintenance
+
+**View Logs:**
+- Go to your service in Render Dashboard
+- Click **"Logs"** tab
+- Monitor real-time application logs
+
+**Auto-Deploy:**
+- Render automatically deploys when you push to main branch
+- Disable in settings if you prefer manual deployments
+
+**Health Checks:**
+- Render automatically monitors `/api/health` endpoint
+- Configure custom health check paths in dashboard settings
+
+#### Render Free Tier Details
+
+- **750 hours/month** free (enough for one 24/7 service)
+- **Automatic SSL** certificates
+- **Sleeps after 15 minutes** of inactivity
+- **30-60 seconds** to spin up when accessed after sleep
+- **512 MB RAM** included
+- **Automatic deployments** from GitHub
+
+#### Troubleshooting
+
+**Issue: Service won't start**
+- Verify all required environment variables are set
+- Check MongoDB connection string is correct
+- Ensure PORT is set to `10000` or uses `process.env.PORT`
+
+**Issue: CORS errors**
+- Add frontend URL to CORS whitelist in `server.js`
+- Verify `credentials: true` is set in CORS configuration
+
+**Issue: 503 Service Unavailable**
+- Free tier is spinning up after inactivity
+- Wait 30-60 seconds and retry
+
+**Issue: MongoDB connection failed**
+- Check MongoDB Atlas IP whitelist includes `0.0.0.0/0`
+- Verify database credentials are correct
+- Ensure network access is properly configured
+
+#### Scaling for Production
+
+To handle increased traffic:
+1. Upgrade to **Starter** ($7/month) or **Standard** ($25/month) plan
+2. Enable **horizontal scaling** in dashboard
+3. Configure **auto-scaling** rules based on CPU/memory
+4. Add **Redis** for caching and session management
+5. Implement **CDN** for static asset delivery
+
+#### Render vs Heroku Comparison
+
+| Feature | Heroku | Render |
+|---------|--------|--------|
+| Free Tier | 550 hours/month | 750 hours/month |
+| Sleep Time | 30 min inactivity | 15 min inactivity |
+| Automatic SSL | Yes | Yes |
+| Dashboard | Complex | Clean & intuitive |
+| Pricing | More expensive | More affordable |
+| Build Speed | Fast | Comparable |
+| Custom Domains | Easy | Easy |
+| Database Options | Limited free | Better options |
 
 ### Docker Deployment
 
-1. **Frontend Dockerfile**:
-   ```dockerfile
-   FROM node:18-alpine
-   WORKDIR /app
-   COPY package*.json ./
-   RUN npm ci --only=production
-   COPY . .
-   RUN npm run build
-   EXPOSE 8080
-   CMD ["npm", "run", "preview"]
-   ```
+For containerized deployment:
 
-2. **Backend Dockerfile**:
-   ```dockerfile
-   FROM node:18-alpine
-   WORKDIR /app
-   COPY package*.json ./
-   RUN npm ci --only=production
-   COPY . .
-   EXPOSE 3001
-   CMD ["npm", "start"]
-   ```
+**Frontend Dockerfile:**
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 8080
+CMD ["npm", "run", "preview"]
+```
 
-### Environment Configuration for Production
+**Backend Dockerfile:**
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 3001
+CMD ["npm", "start"]
+```
 
-Update your production environment variables:
+### Deployment Checklist
 
+- [ ] Push code to GitHub repository
+- [ ] Create Render account and connect GitHub
+- [ ] Configure Render web service with correct settings
+- [ ] Add all environment variables in Render dashboard
+- [ ] Deploy and verify successful deployment
+- [ ] Test API health endpoint
+- [ ] Update frontend environment variables
+- [ ] Configure MongoDB Atlas network access
+- [ ] Test all API endpoints
+- [ ] Update CORS configuration if needed
+- [ ] Monitor application logs for errors
+- [ ] Set up error tracking (optional: Sentry)
+- [ ] Configure domain name (optional)
+- [ ] Enable auto-deploy from GitHub
+
+### Environment Configuration Reference
+
+**Production Frontend (.env.production):**
 ```env
-# Frontend (.env.production)
-VITE_API_BASE_URL=https://your-api-domain.com/api
+VITE_API_BASE_URL=https://blood-connect-backend.onrender.com/api
+VITE_APP_NAME=BloodConnect
+VITE_APP_VERSION=1.0.0
+```
 
-# Backend (.env.production)
+**Production Backend (.env):**
+```env
 NODE_ENV=production
-MONGODB_URI=mongodb+srv://your-atlas-connection-string
-JWT_SECRET=your-production-jwt-secret
-FRONTEND_URL=https://your-frontend-domain.com
+PORT=10000
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/bloodconnect
+JWT_SECRET=your_production_jwt_secret_minimum_32_characters
+JWT_EXPIRE=7d
+FRONTEND_URL=https://your-frontend.vercel.app
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your.email@gmail.com
+EMAIL_PASS=your_gmail_app_password
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
 ## Technologies Used
